@@ -83,17 +83,6 @@ export default function HomePage() {
     }
   };
 
-  const handleDownload = () => {
-    if (!generatedImage) return;
-
-    const link = document.createElement("a");
-    link.href = generatedImage;
-    link.download = `bundle-${Date.now()}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
   const handleGenerateAgain = () => {
     setGeneratedImage(null);
     setError(null);
@@ -163,13 +152,16 @@ export default function HomePage() {
           )}
         </section>
 
-        {generatedImage && (
-          <GeneratedResult
-            imageUrl={generatedImage}
-            onDownload={handleDownload}
-            onGenerateAgain={handleGenerateAgain}
-          />
-        )}
+        {generatedImage &&
+          productA.previewUrl &&
+          productB.previewUrl && (
+            <GeneratedResult
+              aiImageUrl={generatedImage}
+              productAUrl={productA.previewUrl}
+              productBUrl={productB.previewUrl}
+              onGenerateAgain={handleGenerateAgain}
+            />
+          )}
       </div>
     </main>
   );
