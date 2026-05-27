@@ -1,4 +1,7 @@
-import { processProductImage } from "@/lib/remove-white-background";
+import {
+  processBadgeImage,
+  processProductImage,
+} from "@/lib/remove-white-background";
 import { BUNDLE_BADGE_SRC } from "@/lib/bundle-editor";
 
 const rawCache = new Map<string, HTMLImageElement>();
@@ -59,7 +62,7 @@ export function getCachedProductImage(
   return promise;
 }
 
-/** Promotional badge — full color artwork, no background stripping. */
+/** Promotional badge — outer white matte removed, artwork unchanged. */
 export function getCachedBadge(): Promise<HTMLImageElement> {
   const key = BUNDLE_BADGE_SRC;
   const cached = badgeCache.get(key);
@@ -68,6 +71,7 @@ export function getCachedBadge(): Promise<HTMLImageElement> {
   if (badgeLoadPromise) return badgeLoadPromise;
 
   badgeLoadPromise = loadRawImage(key)
+    .then(processBadgeImage)
     .then((img) => {
       badgeCache.set(key, img);
       badgeLoadPromise = null;
