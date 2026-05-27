@@ -4,14 +4,19 @@ import { useState } from "react";
 import BundleCanvasView from "@/components/BundleCanvasView";
 import {
   CANVAS_CENTER,
-  getProductLayerOrder,
+  getEditorLayerOrder,
   LAYER_LABELS,
   MAX_SCALE,
   MIN_SCALE,
-  MIN_SCALE_BADGE,
+  MIN_SCALE_LOGO,
+  MAX_ROTATION,
+  MIN_ROTATION,
+  ROTATION_BUTTON_STEP,
+  ROTATION_STEP,
   SCALE_STEP,
   type BundleTransforms,
   type LayerId,
+  applyRotation,
   clampScale,
 } from "@/lib/bundle-editor";
 
@@ -19,6 +24,7 @@ type BundleEditorProps = {
   productAUrl: string;
   productBUrl: string;
   productCUrl?: string | null;
+  logoUrl?: string | null;
   transforms: BundleTransforms;
   onTransformsChange: (
     transforms: BundleTransforms | ((prev: BundleTransforms) => BundleTransforms),
@@ -37,6 +43,7 @@ export default function BundleEditor({
   productAUrl,
   productBUrl,
   productCUrl = null,
+  logoUrl = null,
   transforms,
   onTransformsChange,
   onBeginGesture,
@@ -49,19 +56,25 @@ export default function BundleEditor({
   onInteractingChange,
 }: BundleEditorProps) {
   const hasProductC = Boolean(productCUrl);
-  const layerOrder = getProductLayerOrder(hasProductC);
+  const hasLogo = Boolean(logoUrl);
+  const layerOrder = getEditorLayerOrder(hasProductC, hasLogo);
   const [selectedLayer, setSelectedLayer] = useState<LayerId>("productA");
-  const activeLayer =
-    selectedLayer === "productC" && !hasProductC ? "productA" : selectedLayer;
 
-  const minScale = activeLayer === "badge" ? MIN_SCALE_BADGE : MIN_SCALE;
+  const activeLayer =
+    selectedLayer === "productC" && !hasProductC
+      ? "productA"
+      : selectedLayer === "logo" && !hasLogo
+        ? "productA"
+        : selectedLayer;
+
+  const minScale = activeLayer === "logo" ? MIN_SCALE_LOGO : MIN_SCALE;
 
   const updateLayerScale = (value: number) => {
     onTransformsChange((prev) => ({
       ...prev,
-      [selectedLayer]: {
-        ...prev[selectedLayer],
-        scale: clampScale(value, selectedLayer),
+      [activeLayer]: {
+        ...prev[activeLayer],
+        scale: clampScale(value, activeLayer),
       },
     }));
   };
@@ -83,8 +96,8 @@ export default function BundleEditor({
     onBeginGesture();
     onTransformsChange((prev) => ({
       ...prev,
-      [selectedLayer]: {
-        ...prev[selectedLayer],
+      [activeLayer]: {
+        ...prev[activeLayer],
         x: CANVAS_CENTER.x,
         y: CANVAS_CENTER.y,
       },
@@ -92,7 +105,43 @@ export default function BundleEditor({
     onCommit();
   };
 
-  const selected = transforms[selectedLayer];
+  const updateLayerRotation = (value: number) => {
+    onTransformsChange((prev) => ({
+      ...prev,
+      [activeLayer]: {
+        ...prev[activeLayer],
+        rotation: applyRotation(value),
+      },
+    }));
+  };
+
+  const rotateSelected = (direction: "left" | "right") => {
+    onBeginGesture();
+    const delta =
+      direction === "right" ? ROTATION_BUTTON_STEP : -ROTATION_BUTTON_STEP;
+    onTransformsChange((prev) => ({
+      ...prev,
+      [activeLayer]: {
+        ...prev[activeLayer],
+        rotation: applyRotation(prev[activeLayer].rotation + delta),
+      },
+    }));
+    onCommit();
+  };
+
+  const resetRotation = () => {
+    onBeginGesture();
+    onTransformsChange((prev) => ({
+      ...prev,
+      [activeLayer]: {
+        ...prev[activeLayer],
+        rotation: 0,
+      },
+    }));
+    onCommit();
+  };
+
+  const selected = transforms[activeLayer];
 
   return (
     <div className="space-y-4">
@@ -148,6 +197,12 @@ export default function BundleEditor({
         ))}
       </div>
 
+      {!hasLogo && (
+        <p className="text-xs text-zinc-500">
+          Upload a logo above to enable the Logo layer in the editor.
+        </p>
+      )}
+
       <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 backdrop-blur-sm">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-medium text-zinc-600">
@@ -191,10 +246,67 @@ export default function BundleEditor({
         </div>
       </div>
 
+      <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 backdrop-blur-sm">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-medium text-zinc-600">
+            Rotation — {LAYER_LABELS[activeLayer]} (snaps at 0° / ±90°)
+          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs tabular-nums text-zinc-500">
+              {Math.round(selected.rotation)}°
+            </span>
+            {selected.rotation !== 0 && (
+              <button
+                type="button"
+                onClick={resetRotation}
+                className="text-[10px] font-medium text-zinc-500 underline-offset-2 hover:text-zinc-800 hover:underline"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => rotateSelected("left")}
+            disabled={selected.rotation <= MIN_ROTATION}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-sm font-medium disabled:opacity-40"
+            aria-label="Rotate counter-clockwise"
+            title="−15°"
+          >
+            ↺
+          </button>
+          <input
+            type="range"
+            min={MIN_ROTATION}
+            max={MAX_ROTATION}
+            step={ROTATION_STEP}
+            value={selected.rotation}
+            onPointerDown={onBeginGesture}
+            onChange={(e) => updateLayerRotation(parseFloat(e.target.value))}
+            onPointerUp={onCommit}
+            onTouchEnd={onCommit}
+            className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-200 accent-zinc-900"
+          />
+          <button
+            type="button"
+            onClick={() => rotateSelected("right")}
+            disabled={selected.rotation >= MAX_ROTATION}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-sm font-medium disabled:opacity-40"
+            aria-label="Rotate clockwise"
+            title="+15°"
+          >
+            ↻
+          </button>
+        </div>
+      </div>
+
       <BundleCanvasView
         productAUrl={productAUrl}
         productBUrl={productBUrl}
         productCUrl={productCUrl}
+        logoUrl={logoUrl}
         transforms={transforms}
         interactive
         selectedLayer={activeLayer}

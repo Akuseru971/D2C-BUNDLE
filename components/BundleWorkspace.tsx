@@ -4,27 +4,26 @@ import { useEffect, useState } from "react";
 import BundleEditor from "@/components/BundleEditor";
 import LiveBundlePreview from "@/components/LiveBundlePreview";
 import { useTransformHistory } from "@/hooks/useTransformHistory";
-import { getDefaultTransforms } from "@/lib/bundle-editor";
+import { EXPORT_SIZE, getDefaultTransforms } from "@/lib/bundle-editor";
 import { renderBundleToDataUrl } from "@/lib/export-bundle-canvas";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 
-type GeneratedResultProps = {
-  aiImageUrl: string;
+type BundleWorkspaceProps = {
   productAUrl: string;
   productBUrl: string;
   productCUrl?: string | null;
-  onGenerateAgain: () => void;
+  logoUrl?: string | null;
+  onEditUploads: () => void;
 };
 
-export default function GeneratedResult({
-  aiImageUrl,
+export default function BundleWorkspace({
   productAUrl,
   productBUrl,
   productCUrl = null,
-  onGenerateAgain,
-}: GeneratedResultProps) {
+  logoUrl = null,
+  onEditUploads,
+}: BundleWorkspaceProps) {
   const hasProductC = Boolean(productCUrl);
-  const [activePreview, setActivePreview] = useState<"edited" | "ai">("edited");
   const [isInteracting, setIsInteracting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -51,16 +50,19 @@ export default function GeneratedResult({
   const handleDownload = async () => {
     setIsExporting(true);
     try {
-      await preloadBundleImages(productAUrl, productBUrl, productCUrl);
-      const href =
-        activePreview === "ai"
-          ? aiImageUrl
-          : await renderBundleToDataUrl(
-              productAUrl,
-              productBUrl,
-              transforms,
-              productCUrl,
-            );
+      await preloadBundleImages(
+        productAUrl,
+        productBUrl,
+        productCUrl,
+        logoUrl,
+      );
+      const href = await renderBundleToDataUrl(
+        productAUrl,
+        productBUrl,
+        transforms,
+        productCUrl,
+        logoUrl,
+      );
 
       const link = document.createElement("a");
       link.href = href;
@@ -75,63 +77,31 @@ export default function GeneratedResult({
 
   return (
     <section className="mt-8 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-zinc-900">Generated bundle</h2>
-          <p className="mt-1 text-sm text-zinc-500">
-            WYSIWYG editor — what you see while editing matches the preview.
-          </p>
-        </div>
-        <div className="mt-2 flex gap-2 sm:mt-0">
-          <button
-            type="button"
-            onClick={() => setActivePreview("edited")}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-              activePreview === "edited"
-                ? "bg-zinc-900 text-white"
-                : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"
-            }`}
-          >
-            Your layout
-          </button>
-          <button
-            type="button"
-            onClick={() => setActivePreview("ai")}
-            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
-              activePreview === "ai"
-                ? "bg-zinc-900 text-white"
-                : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"
-            }`}
-          >
-            AI preview
-          </button>
-        </div>
+      <div>
+        <h2 className="text-lg font-semibold text-zinc-900">Compose your bundle</h2>
+        <p className="mt-1 text-sm text-zinc-500">
+          Position your products and logo on the canvas. The preview matches the
+          downloaded image.
+        </p>
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
         <div className="order-1 lg:order-2 lg:sticky lg:top-6">
           <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-400">
-            Live preview
+            Preview
           </p>
-          {activePreview === "edited" ? (
-            <LiveBundlePreview
-              productAUrl={productAUrl}
-              productBUrl={productBUrl}
-              productCUrl={productCUrl}
-              transforms={transforms}
-              isInteracting={isInteracting}
-              className="shadow-md"
-            />
-          ) : (
-            <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 shadow-md">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={aiImageUrl}
-                alt="AI generated bundle"
-                className="aspect-square w-full object-contain"
-              />
-            </div>
-          )}
+          <LiveBundlePreview
+            productAUrl={productAUrl}
+            productBUrl={productBUrl}
+            productCUrl={productCUrl}
+            logoUrl={logoUrl}
+            transforms={transforms}
+            isInteracting={isInteracting}
+            className="shadow-md"
+          />
+          <p className="mt-2 text-center text-xs text-zinc-500">
+            Export format: {EXPORT_SIZE} × {EXPORT_SIZE} px (1:1)
+          </p>
         </div>
 
         <div className="order-2 lg:order-1">
@@ -142,6 +112,7 @@ export default function GeneratedResult({
             productAUrl={productAUrl}
             productBUrl={productBUrl}
             productCUrl={productCUrl}
+            logoUrl={logoUrl}
             transforms={transforms}
             onTransformsChange={setTransforms}
             onBeginGesture={beginGesture}
@@ -167,14 +138,14 @@ export default function GeneratedResult({
           disabled={isExporting}
           className="inline-flex flex-1 items-center justify-center rounded-xl bg-zinc-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-zinc-800 disabled:opacity-60"
         >
-          {isExporting ? "Preparing download…" : "Download Image"}
+          {isExporting ? "Preparing download…" : "Download PNG"}
         </button>
         <button
           type="button"
-          onClick={onGenerateAgain}
+          onClick={onEditUploads}
           className="inline-flex flex-1 items-center justify-center rounded-xl border border-zinc-300 bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition hover:bg-zinc-50"
         >
-          Generate Again
+          Change images
         </button>
       </div>
     </section>

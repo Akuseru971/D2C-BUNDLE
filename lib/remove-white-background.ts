@@ -1,5 +1,5 @@
 /** Unified bundle canvas / editor background — must match export. */
-export const BUNDLE_BACKGROUND = "#f5f5f5";
+export const BUNDLE_BACKGROUND = "#ffffff";
 
 const WHITE_THRESHOLD = 238;
 const WHITE_SOFTNESS = 22;

@@ -3,12 +3,26 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   clampPosition,
+  applyRotation,
   clampScale,
   SCALE_STEP,
   type BundleTransforms,
   type LayerId,
+  type LayerTransform,
 } from "@/lib/bundle-editor";
-import { getLayerBounds } from "@/lib/bundle-layout";
+import {
+  angleFromCenter,
+  distanceFromCenter,
+  getScaleHandleCursor,
+  hitTestTransformHandle,
+  type TransformHandleId,
+} from "@/lib/canvas-transform-handles";
+import { drawOrientedSelection } from "@/lib/canvas-layer-draw";
+import {
+  getLayerBounds,
+  pickLayerAtPoint,
+  pointInRotatedBounds,
+} from "@/lib/bundle-layout";
 import type { BundleImageSet } from "@/lib/bundle-layout";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import { renderBundleCanvas } from "@/lib/export-bundle-canvas";
@@ -17,6 +31,7 @@ type BundleCanvasViewProps = {
   productAUrl: string;
   productBUrl: string;
   productCUrl?: string | null;
+  logoUrl?: string | null;
   transforms: BundleTransforms;
   interactive?: boolean;
   selectedLayer?: LayerId;
@@ -31,29 +46,39 @@ type BundleCanvasViewProps = {
   borderStyle?: "solid" | "dashed";
 };
 
-function drawSelectionRing(
-  ctx: CanvasRenderingContext2D,
-  bounds: { x: number; y: number; width: number; height: number },
-  canvasSize: number,
-) {
-  const pad = canvasSize * 0.008;
-  ctx.save();
-  ctx.strokeStyle = "#18181b";
-  ctx.lineWidth = Math.max(1.5, canvasSize * 0.004);
-  ctx.setLineDash([canvasSize * 0.012, canvasSize * 0.008]);
-  ctx.strokeRect(
-    bounds.x - pad,
-    bounds.y - pad,
-    bounds.width + pad * 2,
-    bounds.height + pad * 2,
-  );
-  ctx.restore();
+type GestureMode = "move" | "scale" | "rotate";
+
+type DragState = {
+  layer: LayerId;
+  mode: GestureMode;
+  startClientX: number;
+  startClientY: number;
+  startCanvasX: number;
+  startCanvasY: number;
+  origin: LayerTransform;
+  startDistFromCenter: number;
+  startAngleRad: number;
+  handleId: TransformHandleId | null;
+};
+
+function getCanvasPoint(
+  event: { clientX: number; clientY: number },
+  canvas: HTMLCanvasElement,
+): { x: number; y: number; size: number } {
+  const rect = canvas.getBoundingClientRect();
+  const size = rect.width;
+  return {
+    x: ((event.clientX - rect.left) / rect.width) * size,
+    y: ((event.clientY - rect.top) / rect.height) * size,
+    size,
+  };
 }
 
 export default function BundleCanvasView({
   productAUrl,
   productBUrl,
   productCUrl = null,
+  logoUrl = null,
   transforms,
   interactive = false,
   selectedLayer = "productA",
@@ -70,13 +95,12 @@ export default function BundleCanvasView({
   const transformsRef = useRef(transforms);
   const selectedRef = useRef(selectedLayer);
   const rafRef = useRef<number | null>(null);
-  const dragRef = useRef<{
-    layer: LayerId;
-    startX: number;
-    startY: number;
-    origin: BundleTransforms[LayerId];
-  } | null>(null);
+  const dragRef = useRef<DragState | null>(null);
+  const handleHighlightRef = useRef<TransformHandleId | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [hoveredHandle, setHoveredHandle] = useState<TransformHandleId | null>(
+    null,
+  );
 
   useEffect(() => {
     transformsRef.current = transforms;
@@ -85,6 +109,40 @@ export default function BundleCanvasView({
   useEffect(() => {
     selectedRef.current = selectedLayer;
   }, [selectedLayer]);
+
+  const updateCanvasCursor = useCallback(
+    (
+      handle: TransformHandleId | null,
+      mode: GestureMode | null,
+      rotation: number,
+    ) => {
+      const canvas = canvasRef.current;
+      if (!canvas || !interactive) return;
+
+      if (mode === "move" || (mode === "rotate" && isDragging)) {
+        canvas.style.cursor = "grabbing";
+        return;
+      }
+      if (mode === "scale" && handle) {
+        canvas.style.cursor = getScaleHandleCursor(handle, rotation);
+        return;
+      }
+      if (mode === "rotate") {
+        canvas.style.cursor = "grab";
+        return;
+      }
+      if (handle === "rotate") {
+        canvas.style.cursor = "grab";
+        return;
+      }
+      if (handle?.startsWith("scale")) {
+        canvas.style.cursor = getScaleHandleCursor(handle, rotation);
+        return;
+      }
+      canvas.style.cursor = "default";
+    },
+    [interactive, isDragging],
+  );
 
   const paint = useCallback(() => {
     const canvas = canvasRef.current;
@@ -108,13 +166,17 @@ export default function BundleCanvasView({
     renderBundleCanvas(ctx, images, t, size);
 
     if (interactive && selectedRef.current) {
-      const bounds = getLayerBounds(
-        selectedRef.current,
-        images,
-        t,
-        size,
-      );
-      if (bounds) drawSelectionRing(ctx, bounds, size);
+      const layer = selectedRef.current;
+      const bounds = getLayerBounds(layer, images, t, size);
+      if (bounds) {
+        drawOrientedSelection(
+          ctx,
+          bounds,
+          t[layer].rotation,
+          size,
+          handleHighlightRef.current,
+        );
+      }
     }
   }, [interactive]);
 
@@ -128,7 +190,7 @@ export default function BundleCanvasView({
 
   useEffect(() => {
     let cancelled = false;
-    preloadBundleImages(productAUrl, productBUrl, productCUrl).then(
+    preloadBundleImages(productAUrl, productBUrl, productCUrl, logoUrl).then(
       (images) => {
         if (!cancelled) {
           imagesRef.current = images;
@@ -139,14 +201,14 @@ export default function BundleCanvasView({
     return () => {
       cancelled = true;
     };
-  }, [productAUrl, productBUrl, productCUrl, schedulePaint]);
+  }, [productAUrl, productBUrl, productCUrl, logoUrl, schedulePaint]);
 
   useEffect(() => {
     schedulePaint();
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [transforms, selectedLayer, schedulePaint]);
+  }, [transforms, selectedLayer, hoveredHandle, schedulePaint]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -156,58 +218,235 @@ export default function BundleCanvasView({
     return () => observer.disconnect();
   }, [schedulePaint]);
 
+  const resolveHoverHandle = useCallback(
+    (canvasX: number, canvasY: number, size: number): TransformHandleId | null => {
+      const images = imagesRef.current;
+      const layer = selectedRef.current;
+      if (!images || !layer) return null;
+      const bounds = getLayerBounds(
+        layer,
+        images,
+        transformsRef.current,
+        size,
+      );
+      if (!bounds) return null;
+      return hitTestTransformHandle(
+        canvasX,
+        canvasY,
+        bounds,
+        transformsRef.current[layer].rotation,
+        size,
+      );
+    },
+    [],
+  );
+
   const handlePointerDown = (event: React.PointerEvent) => {
     if (!interactive || !onTransformsChange) return;
-    if (!imagesRef.current) return;
+    const images = imagesRef.current;
+    const canvas = canvasRef.current;
+    if (!images || !canvas) return;
 
-    const layer = selectedRef.current;
+    const { x: canvasX, y: canvasY, size } = getCanvasPoint(event, canvas);
+    const layerAtPoint = pickLayerAtPoint(
+      canvasX,
+      canvasY,
+      images,
+      transformsRef.current,
+      size,
+    );
 
-    onSelectLayer?.(layer);
+    let layer = selectedRef.current;
+    let mode: GestureMode = "move";
+    let handleId: TransformHandleId | null = null;
+
+    const selectedBounds = getLayerBounds(
+      layer,
+      images,
+      transformsRef.current,
+      size,
+    );
+
+    if (selectedBounds) {
+      handleId = hitTestTransformHandle(
+        canvasX,
+        canvasY,
+        selectedBounds,
+        transformsRef.current[layer].rotation,
+        size,
+      );
+      if (handleId === "rotate") {
+        mode = "rotate";
+      } else if (handleId?.startsWith("scale")) {
+        mode = "scale";
+      }
+    }
+
+    if (!handleId) {
+      if (layerAtPoint) {
+        layer = layerAtPoint;
+        selectedRef.current = layer;
+        onSelectLayer?.(layer);
+      }
+      const bounds = getLayerBounds(
+        layer,
+        images,
+        transformsRef.current,
+        size,
+      );
+      if (
+        !bounds ||
+        !pointInRotatedBounds(
+          canvasX,
+          canvasY,
+          bounds,
+          transformsRef.current[layer].rotation,
+        )
+      ) {
+        return;
+      }
+      mode = "move";
+    }
+
+    const bounds = getLayerBounds(
+      layer,
+      images,
+      transformsRef.current,
+      size,
+    );
+    if (!bounds) return;
+
     onBeginGesture?.();
     onInteractingChange?.(true);
     setIsDragging(true);
+    handleHighlightRef.current = handleId;
 
+    const origin = { ...transformsRef.current[layer] };
     dragRef.current = {
       layer,
-      startX: event.clientX,
-      startY: event.clientY,
-      origin: { ...transformsRef.current[layer] },
+      mode,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startCanvasX: canvasX,
+      startCanvasY: canvasY,
+      origin,
+      startDistFromCenter: distanceFromCenter(canvasX, canvasY, bounds),
+      startAngleRad: angleFromCenter(canvasX, canvasY, bounds),
+      handleId,
     };
 
-    canvasRef.current?.setPointerCapture(event.pointerId);
+    updateCanvasCursor(
+      handleId,
+      mode,
+      transformsRef.current[layer].rotation,
+    );
+    canvas.setPointerCapture(event.pointerId);
     schedulePaint();
   };
 
   const handlePointerMove = (event: React.PointerEvent) => {
-    if (!interactive || !onTransformsChange || !dragRef.current) return;
-    const container = canvasRef.current;
+    const canvas = canvasRef.current;
+    const images = imagesRef.current;
+    if (!canvas || !images) return;
+
+    const { x: canvasX, y: canvasY, size } = getCanvasPoint(event, canvas);
     const drag = dragRef.current;
-    if (!container) return;
 
-    const rect = container.getBoundingClientRect();
-    const deltaX = ((event.clientX - drag.startX) / rect.width) * 100;
-    const deltaY = ((event.clientY - drag.startY) / rect.height) * 100;
+    if (!interactive || !onTransformsChange || !drag) {
+      if (!interactive) return;
+      const handle = resolveHoverHandle(canvasX, canvasY, size);
+      setHoveredHandle(handle);
+      handleHighlightRef.current = handle;
+      const layer = selectedRef.current;
+      updateCanvasCursor(
+        handle,
+        null,
+        transformsRef.current[layer].rotation,
+      );
+      schedulePaint();
+      return;
+    }
 
-    onTransformsChange((prev) => ({
-      ...prev,
-      [drag.layer]: {
-        ...drag.origin,
-        x: clampPosition(drag.origin.x + deltaX),
-        y: clampPosition(drag.origin.y + deltaY),
+    const bounds = getLayerBounds(
+      drag.layer,
+      images,
+      {
+        ...transformsRef.current,
+        [drag.layer]: drag.origin,
       },
-    }));
+      size,
+    );
+    if (!bounds) return;
+
+    if (drag.mode === "scale") {
+      const dist = distanceFromCenter(canvasX, canvasY, bounds);
+      const ratio =
+        drag.startDistFromCenter > 0 ? dist / drag.startDistFromCenter : 1;
+      onTransformsChange((prev) => ({
+        ...prev,
+        [drag.layer]: {
+          ...drag.origin,
+          scale: clampScale(drag.origin.scale * ratio, drag.layer),
+        },
+      }));
+    } else if (drag.mode === "rotate") {
+      const angle = angleFromCenter(canvasX, canvasY, bounds);
+      const deltaDeg = ((angle - drag.startAngleRad) * 180) / Math.PI;
+      onTransformsChange((prev) => ({
+        ...prev,
+        [drag.layer]: {
+          ...drag.origin,
+          rotation: applyRotation(drag.origin.rotation + deltaDeg),
+        },
+      }));
+    } else {
+      const rect = canvas.getBoundingClientRect();
+      const deltaX = ((event.clientX - drag.startClientX) / rect.width) * 100;
+      const deltaY = ((event.clientY - drag.startClientY) / rect.height) * 100;
+      onTransformsChange((prev) => ({
+        ...prev,
+        [drag.layer]: {
+          ...drag.origin,
+          x: clampPosition(drag.origin.x + deltaX),
+          y: clampPosition(drag.origin.y + deltaY),
+        },
+      }));
+    }
+    schedulePaint();
   };
 
   const handlePointerUp = (event: React.PointerEvent) => {
     if (!interactive) return;
-    if (canvasRef.current?.hasPointerCapture(event.pointerId)) {
-      canvasRef.current.releasePointerCapture(event.pointerId);
+    const canvas = canvasRef.current;
+    if (canvas?.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
     }
     const hadInteraction = dragRef.current !== null;
     dragRef.current = null;
     setIsDragging(false);
+    handleHighlightRef.current = hoveredHandle;
     onInteractingChange?.(false);
     if (hadInteraction) onCommit?.();
+
+    if (canvas) {
+      const { x, y, size } = getCanvasPoint(event, canvas);
+      const handle = resolveHoverHandle(x, y, size);
+      setHoveredHandle(handle);
+      handleHighlightRef.current = handle;
+      updateCanvasCursor(
+        handle,
+        null,
+        transformsRef.current[selectedRef.current].rotation,
+      );
+    }
+    schedulePaint();
+  };
+
+  const handlePointerLeave = () => {
+    if (dragRef.current) return;
+    setHoveredHandle(null);
+    handleHighlightRef.current = null;
+    if (canvasRef.current) canvasRef.current.style.cursor = "default";
     schedulePaint();
   };
 
@@ -228,32 +467,26 @@ export default function BundleCanvasView({
     schedulePaint();
   };
 
-  const cursorClass =
-    interactive && isDragging
-      ? "cursor-grabbing"
-      : interactive
-        ? "cursor-grab"
-        : "";
-
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border-2 border-zinc-200 bg-[#f5f5f5] ${
+      className={`relative overflow-hidden rounded-2xl border-2 border-zinc-200 bg-white ${
         borderStyle === "dashed" ? "border-dashed" : ""
       } ${className}`}
     >
       <canvas
         ref={canvasRef}
         onPointerDown={handlePointerDown}
-        onPointerMove={interactive && isDragging ? handlePointerMove : undefined}
+        onPointerMove={interactive ? handlePointerMove : undefined}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onPointerLeave={interactive ? handlePointerLeave : undefined}
         onWheel={interactive ? handleWheel : undefined}
-        className={`aspect-square w-full touch-none ${cursorClass}`}
+        className="aspect-square w-full touch-none"
         aria-label={interactive ? "Interactive bundle editor" : "Bundle preview"}
       />
       {interactive && (
         <p className="pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-medium text-zinc-500 shadow-sm backdrop-blur">
-          Selected layer locked · Drag anywhere · Scroll to zoom
+          Corners: resize · Top: rotate (snaps 0°/90°) · Inside: move
         </p>
       )}
     </div>
