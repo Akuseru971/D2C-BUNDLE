@@ -32,6 +32,7 @@ function useProductUpload() {
 export default function HomePage() {
   const productA = useProductUpload();
   const productB = useProductUpload();
+  const productC = useProductUpload();
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -42,7 +43,7 @@ export default function HomePage() {
 
   const handleGenerate = async () => {
     if (!productA.file || !productB.file) {
-      setError("Please upload both product images before generating.");
+      setError("Please upload Product A and Product B before generating.");
       return;
     }
 
@@ -54,6 +55,9 @@ export default function HomePage() {
       const formData = new FormData();
       formData.append("productA", productA.file);
       formData.append("productB", productB.file);
+      if (productC.file) {
+        formData.append("productC", productC.file);
+      }
 
       const response = await fetch("/api/generate-bundle", {
         method: "POST",
@@ -91,19 +95,19 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-zinc-50">
-      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-14">
+      <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
         <header className="text-center">
           <h1 className="text-3xl font-semibold tracking-tight text-zinc-900 sm:text-4xl">
             Bundle Image Generator
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-zinc-600 sm:text-base">
-            Upload two product images and generate a clean marketplace-ready
-            bundle image.
+            Upload two or three product images and generate a clean
+            marketplace-ready bundle image.
           </p>
         </header>
 
         <section className="mt-10 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-8">
-          <div className="flex flex-col gap-6 md:flex-row">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             <ImageUploadBox
               label="Product A"
               file={productA.file}
@@ -116,6 +120,13 @@ export default function HomePage() {
               file={productB.file}
               previewUrl={productB.previewUrl}
               onFileChange={productB.setProduct}
+              onError={setError}
+            />
+            <ImageUploadBox
+              label="Product C (optional)"
+              file={productC.file}
+              previewUrl={productC.previewUrl}
+              onFileChange={productC.setProduct}
               onError={setError}
             />
           </div>
@@ -159,6 +170,7 @@ export default function HomePage() {
               aiImageUrl={generatedImage}
               productAUrl={productA.previewUrl}
               productBUrl={productB.previewUrl}
+              productCUrl={productC.previewUrl}
               onGenerateAgain={handleGenerateAgain}
             />
           )}

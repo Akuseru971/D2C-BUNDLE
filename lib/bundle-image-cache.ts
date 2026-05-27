@@ -3,6 +3,7 @@ import {
   processProductImage,
 } from "@/lib/remove-white-background";
 import { BUNDLE_BADGE_SRC } from "@/lib/bundle-editor";
+import type { BundleImageSet } from "@/lib/bundle-layout";
 
 const rawCache = new Map<string, HTMLImageElement>();
 const productCache = new Map<string, HTMLImageElement>();
@@ -62,7 +63,6 @@ export function getCachedProductImage(
   return promise;
 }
 
-/** Promotional badge — outer white matte removed, artwork unchanged. */
 export function getCachedBadge(): Promise<HTMLImageElement> {
   const key = BUNDLE_BADGE_SRC;
   const cached = badgeCache.get(key);
@@ -85,27 +85,29 @@ export function getCachedBadge(): Promise<HTMLImageElement> {
   return badgeLoadPromise;
 }
 
-export function getCachedImage(src: string): Promise<HTMLImageElement> {
-  return loadRawImage(src);
-}
-
-export type BundleImages = {
-  productA: HTMLImageElement;
-  productB: HTMLImageElement;
-  badge: HTMLImageElement;
-};
-
 export function preloadBundleImages(
   productAUrl: string,
   productBUrl: string,
-): Promise<BundleImages> {
-  return Promise.all([
+  productCUrl?: string | null,
+): Promise<BundleImageSet> {
+  const loads: [
+    Promise<HTMLImageElement>,
+    Promise<HTMLImageElement>,
+    Promise<HTMLImageElement | null>,
+    Promise<HTMLImageElement>,
+  ] = [
     getCachedProductImage(productAUrl),
     getCachedProductImage(productBUrl),
+    productCUrl
+      ? getCachedProductImage(productCUrl)
+      : Promise.resolve(null),
     getCachedBadge(),
-  ]).then(([productA, productB, badge]) => ({
+  ];
+
+  return Promise.all(loads).then(([productA, productB, productC, badge]) => ({
     productA,
     productB,
+    productC,
     badge,
   }));
 }

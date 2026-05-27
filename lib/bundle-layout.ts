@@ -1,9 +1,8 @@
 import type { BundleTransforms, LayerId, LayerTransform } from "@/lib/bundle-editor";
-import { plusRadiusForCanvas } from "@/lib/plus-symbol-draw";
 
-export const PRODUCT_MAX_HEIGHT_RATIO = 0.34;
+export const PRODUCT_MAX_HEIGHT_RATIO_TWO = 0.34;
+export const PRODUCT_MAX_HEIGHT_RATIO_THREE = 0.26;
 export const PRODUCT_MAX_WIDTH_RATIO = 0.85;
-/** Promo badge — larger default for top-right visibility */
 export const BADGE_MAX_WIDTH_RATIO = 0.34;
 
 export type LayerBounds = {
@@ -15,14 +14,22 @@ export type LayerBounds = {
   centerY: number;
 };
 
+function productHeightRatio(hasProductC: boolean): number {
+  return hasProductC
+    ? PRODUCT_MAX_HEIGHT_RATIO_THREE
+    : PRODUCT_MAX_HEIGHT_RATIO_TWO;
+}
+
 export function computeProductBounds(
   img: HTMLImageElement,
   transform: LayerTransform,
   canvasSize: number,
+  hasProductC: boolean,
 ): LayerBounds {
   const centerX = (transform.x / 100) * canvasSize;
   const centerY = (transform.y / 100) * canvasSize;
-  const maxHeight = canvasSize * PRODUCT_MAX_HEIGHT_RATIO * transform.scale;
+  const maxHeight =
+    canvasSize * productHeightRatio(hasProductC) * transform.scale;
   const ratio = img.width / img.height;
   let drawHeight = maxHeight;
   let drawWidth = drawHeight * ratio;
@@ -38,25 +45,6 @@ export function computeProductBounds(
     y: centerY - drawHeight / 2,
     width: drawWidth,
     height: drawHeight,
-    centerX,
-    centerY,
-  };
-}
-
-export function computePlusBounds(
-  transform: LayerTransform,
-  canvasSize: number,
-): LayerBounds {
-  const centerX = (transform.x / 100) * canvasSize;
-  const centerY = (transform.y / 100) * canvasSize;
-  const radius = plusRadiusForCanvas(canvasSize, transform.scale);
-  const size = radius * 2;
-
-  return {
-    x: centerX - radius,
-    y: centerY - radius,
-    width: size,
-    height: size,
     centerX,
     centerY,
   };
@@ -84,15 +72,10 @@ export function computeBadgeBounds(
   };
 }
 
-function pointInBounds(px: number, py: number, b: LayerBounds): boolean {
-  return (
-    px >= b.x && px <= b.x + b.width && py >= b.y && py <= b.y + b.height
-  );
-}
-
 export type BundleImageSet = {
   productA: HTMLImageElement;
   productB: HTMLImageElement;
+  productC: HTMLImageElement | null;
   badge: HTMLImageElement;
 };
 
@@ -101,46 +84,33 @@ export function getLayerBounds(
   images: BundleImageSet,
   transforms: BundleTransforms,
   canvasSize: number,
-): LayerBounds {
+): LayerBounds | null {
+  const hasProductC = Boolean(images.productC);
+
   switch (layer) {
     case "productA":
-      return computeProductBounds(images.productA, transforms.productA, canvasSize);
+      return computeProductBounds(
+        images.productA,
+        transforms.productA,
+        canvasSize,
+        hasProductC,
+      );
     case "productB":
-      return computeProductBounds(images.productB, transforms.productB, canvasSize);
-    case "plus":
-      return computePlusBounds(transforms.plus, canvasSize);
+      return computeProductBounds(
+        images.productB,
+        transforms.productB,
+        canvasSize,
+        hasProductC,
+      );
+    case "productC":
+      if (!images.productC) return null;
+      return computeProductBounds(
+        images.productC,
+        transforms.productC,
+        canvasSize,
+        true,
+      );
     case "badge":
       return computeBadgeBounds(images.badge, transforms.badge, canvasSize);
   }
-}
-
-export function hitTestLayer(
-  px: number,
-  py: number,
-  images: BundleImageSet,
-  transforms: BundleTransforms,
-  canvasSize: number,
-): LayerId | null {
-  const boundsBadge = computeBadgeBounds(
-    images.badge,
-    transforms.badge,
-    canvasSize,
-  );
-  const boundsB = computeProductBounds(
-    images.productB,
-    transforms.productB,
-    canvasSize,
-  );
-  const boundsPlus = computePlusBounds(transforms.plus, canvasSize);
-  const boundsA = computeProductBounds(
-    images.productA,
-    transforms.productA,
-    canvasSize,
-  );
-
-  if (pointInBounds(px, py, boundsBadge)) return "badge";
-  if (pointInBounds(px, py, boundsB)) return "productB";
-  if (pointInBounds(px, py, boundsPlus)) return "plus";
-  if (pointInBounds(px, py, boundsA)) return "productA";
-  return null;
 }

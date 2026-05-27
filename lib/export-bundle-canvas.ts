@@ -6,10 +6,6 @@ import {
   computeProductBounds,
 } from "@/lib/bundle-layout";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
-import {
-  drawPremiumPlus,
-  plusRadiusForCanvas,
-} from "@/lib/plus-symbol-draw";
 import { BUNDLE_BACKGROUND } from "@/lib/remove-white-background";
 
 function drawProductLayer(
@@ -17,8 +13,9 @@ function drawProductLayer(
   img: HTMLImageElement,
   transform: BundleTransforms["productA"],
   canvasSize: number,
+  hasProductC: boolean,
 ) {
-  const bounds = computeProductBounds(img, transform, canvasSize);
+  const bounds = computeProductBounds(img, transform, canvasSize, hasProductC);
 
   ctx.save();
   ctx.shadowColor = "rgba(0, 0, 0, 0.12)";
@@ -44,29 +41,50 @@ export function renderBundleCanvas(
   transforms: BundleTransforms,
   canvasSize: number = EXPORT_SIZE,
 ) {
+  const hasProductC = Boolean(images.productC);
+
   ctx.fillStyle = BUNDLE_BACKGROUND;
   ctx.fillRect(0, 0, canvasSize, canvasSize);
 
-  drawProductLayer(ctx, images.productA, transforms.productA, canvasSize);
+  drawProductLayer(
+    ctx,
+    images.productA,
+    transforms.productA,
+    canvasSize,
+    hasProductC,
+  );
+  drawProductLayer(
+    ctx,
+    images.productB,
+    transforms.productB,
+    canvasSize,
+    hasProductC,
+  );
 
-  const plusX = (transforms.plus.x / 100) * canvasSize;
-  const plusY = (transforms.plus.y / 100) * canvasSize;
-  const plusR = plusRadiusForCanvas(canvasSize, transforms.plus.scale);
-  drawPremiumPlus(ctx, plusX, plusY, plusR);
-
-  drawProductLayer(ctx, images.productB, transforms.productB, canvasSize);
+  if (images.productC) {
+    drawProductLayer(
+      ctx,
+      images.productC,
+      transforms.productC,
+      canvasSize,
+      true,
+    );
+  }
 
   drawBadge(ctx, images.badge, transforms.badge, canvasSize);
 }
-
-export { PRODUCT_MAX_HEIGHT_RATIO } from "@/lib/bundle-layout";
 
 export async function renderBundleToDataUrl(
   productAUrl: string,
   productBUrl: string,
   transforms: BundleTransforms,
+  productCUrl?: string | null,
 ): Promise<string> {
-  const images = await preloadBundleImages(productAUrl, productBUrl);
+  const images = await preloadBundleImages(
+    productAUrl,
+    productBUrl,
+    productCUrl,
+  );
 
   const canvas = document.createElement("canvas");
   canvas.width = EXPORT_SIZE;

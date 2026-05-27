@@ -10,10 +10,11 @@ export async function POST(request: NextRequest) {
     const formData = await request.formData();
     const productA = formData.get("productA");
     const productB = formData.get("productB");
+    const productC = formData.get("productC");
 
     if (!(productA instanceof File) || !(productB instanceof File)) {
       return NextResponse.json(
-        { error: "Both product images are required." },
+        { error: "Product A and Product B are required." },
         { status: 400 },
       );
     }
@@ -34,7 +35,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const b64 = await generateBundleImage(productA, productB);
+    let productCFile: File | null = null;
+    if (productC instanceof File && productC.size > 0) {
+      const validationC = validateImageFile(productC);
+      if (!validationC.valid) {
+        return NextResponse.json(
+          { error: `Product C: ${validationC.error}` },
+          { status: 400 },
+        );
+      }
+      productCFile = productC;
+    }
+
+    const b64 = await generateBundleImage(productA, productB, productCFile);
 
     return NextResponse.json({
       image: `data:image/png;base64,${b64}`,

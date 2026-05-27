@@ -6,6 +6,7 @@ import type { BundleTransforms } from "@/lib/bundle-editor";
 type LiveBundlePreviewProps = {
   productAUrl: string;
   productBUrl: string;
+  productCUrl?: string | null;
   transforms: BundleTransforms;
   isInteracting?: boolean;
   className?: string;
@@ -14,6 +15,7 @@ type LiveBundlePreviewProps = {
 export default function LiveBundlePreview({
   productAUrl,
   productBUrl,
+  productCUrl = null,
   transforms,
   isInteracting = false,
   className = "",
@@ -23,6 +25,7 @@ export default function LiveBundlePreview({
       <BundleCanvasView
         productAUrl={productAUrl}
         productBUrl={productBUrl}
+        productCUrl={productCUrl}
         transforms={transforms}
         interactive={false}
         className={isInteracting ? "opacity-95" : ""}

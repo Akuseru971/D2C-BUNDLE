@@ -6,8 +6,8 @@ import type { BundleTransforms } from "@/lib/bundle-editor";
 function cloneTransforms(t: BundleTransforms): BundleTransforms {
   return {
     productA: { ...t.productA },
-    plus: { ...t.plus },
     productB: { ...t.productB },
+    productC: { ...t.productC },
     badge: { ...t.badge },
   };
 }

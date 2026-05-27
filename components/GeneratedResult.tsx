@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import BundleEditor from "@/components/BundleEditor";
 import LiveBundlePreview from "@/components/LiveBundlePreview";
 import { useTransformHistory } from "@/hooks/useTransformHistory";
-import { DEFAULT_TRANSFORMS } from "@/lib/bundle-editor";
+import { getDefaultTransforms } from "@/lib/bundle-editor";
 import { renderBundleToDataUrl } from "@/lib/export-bundle-canvas";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 
@@ -12,6 +12,7 @@ type GeneratedResultProps = {
   aiImageUrl: string;
   productAUrl: string;
   productBUrl: string;
+  productCUrl?: string | null;
   onGenerateAgain: () => void;
 };
 
@@ -19,8 +20,10 @@ export default function GeneratedResult({
   aiImageUrl,
   productAUrl,
   productBUrl,
+  productCUrl = null,
   onGenerateAgain,
 }: GeneratedResultProps) {
+  const hasProductC = Boolean(productCUrl);
   const [activePreview, setActivePreview] = useState<"edited" | "ai">("edited");
   const [isInteracting, setIsInteracting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -35,16 +38,20 @@ export default function GeneratedResult({
     canUndo,
     canRedo,
     resetHistory,
-  } = useTransformHistory(DEFAULT_TRANSFORMS);
+  } = useTransformHistory(getDefaultTransforms(hasProductC));
+
+  useEffect(() => {
+    resetHistory(getDefaultTransforms(hasProductC));
+  }, [hasProductC, resetHistory]);
 
   const handleReset = () => {
-    resetHistory(DEFAULT_TRANSFORMS);
+    resetHistory(getDefaultTransforms(hasProductC));
   };
 
   const handleDownload = async () => {
     setIsExporting(true);
     try {
-      await preloadBundleImages(productAUrl, productBUrl);
+      await preloadBundleImages(productAUrl, productBUrl, productCUrl);
       const href =
         activePreview === "ai"
           ? aiImageUrl
@@ -52,6 +59,7 @@ export default function GeneratedResult({
               productAUrl,
               productBUrl,
               transforms,
+              productCUrl,
             );
 
       const link = document.createElement("a");
@@ -109,6 +117,7 @@ export default function GeneratedResult({
             <LiveBundlePreview
               productAUrl={productAUrl}
               productBUrl={productBUrl}
+              productCUrl={productCUrl}
               transforms={transforms}
               isInteracting={isInteracting}
               className="shadow-md"
@@ -132,6 +141,7 @@ export default function GeneratedResult({
           <BundleEditor
             productAUrl={productAUrl}
             productBUrl={productBUrl}
+            productCUrl={productCUrl}
             transforms={transforms}
             onTransformsChange={setTransforms}
             onBeginGesture={beginGesture}

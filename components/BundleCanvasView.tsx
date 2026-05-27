@@ -9,13 +9,14 @@ import {
   type LayerId,
 } from "@/lib/bundle-editor";
 import { getLayerBounds } from "@/lib/bundle-layout";
-import type { BundleImages } from "@/lib/bundle-image-cache";
+import type { BundleImageSet } from "@/lib/bundle-layout";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import { renderBundleCanvas } from "@/lib/export-bundle-canvas";
 
 type BundleCanvasViewProps = {
   productAUrl: string;
   productBUrl: string;
+  productCUrl?: string | null;
   transforms: BundleTransforms;
   interactive?: boolean;
   selectedLayer?: LayerId;
@@ -52,6 +53,7 @@ function drawSelectionRing(
 export default function BundleCanvasView({
   productAUrl,
   productBUrl,
+  productCUrl = null,
   transforms,
   interactive = false,
   selectedLayer = "productA",
@@ -64,7 +66,7 @@ export default function BundleCanvasView({
   borderStyle = "solid",
 }: BundleCanvasViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imagesRef = useRef<BundleImages | null>(null);
+  const imagesRef = useRef<BundleImageSet | null>(null);
   const transformsRef = useRef(transforms);
   const selectedRef = useRef(selectedLayer);
   const rafRef = useRef<number | null>(null);
@@ -112,7 +114,7 @@ export default function BundleCanvasView({
         t,
         size,
       );
-      drawSelectionRing(ctx, bounds, size);
+      if (bounds) drawSelectionRing(ctx, bounds, size);
     }
   }, [interactive]);
 
@@ -126,16 +128,18 @@ export default function BundleCanvasView({
 
   useEffect(() => {
     let cancelled = false;
-    preloadBundleImages(productAUrl, productBUrl).then((images) => {
-      if (!cancelled) {
-        imagesRef.current = images;
-        schedulePaint();
-      }
-    });
+    preloadBundleImages(productAUrl, productBUrl, productCUrl).then(
+      (images) => {
+        if (!cancelled) {
+          imagesRef.current = images;
+          schedulePaint();
+        }
+      },
+    );
     return () => {
       cancelled = true;
     };
-  }, [productAUrl, productBUrl, schedulePaint]);
+  }, [productAUrl, productBUrl, productCUrl, schedulePaint]);
 
   useEffect(() => {
     schedulePaint();
@@ -154,8 +158,7 @@ export default function BundleCanvasView({
 
   const handlePointerDown = (event: React.PointerEvent) => {
     if (!interactive || !onTransformsChange) return;
-    const images = imagesRef.current;
-    if (!images) return;
+    if (!imagesRef.current) return;
 
     const layer = selectedRef.current;
 

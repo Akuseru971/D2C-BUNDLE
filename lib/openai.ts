@@ -1,5 +1,6 @@
 import OpenAI, { toFile } from "openai";
-import { BUNDLE_PROMPT, IMAGE_MODEL } from "@/lib/constants";
+import { buildBundlePrompt } from "@/lib/bundle-prompt";
+import { IMAGE_MODEL } from "@/lib/constants";
 
 function getClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -14,16 +15,26 @@ function getClient(): OpenAI {
 export async function generateBundleImage(
   productA: File,
   productB: File,
+  productC?: File | null,
 ): Promise<string> {
   const client = getClient();
 
   const imageA = await toFile(productA, productA.name, { type: productA.type });
   const imageB = await toFile(productB, productB.name, { type: productB.type });
 
+  const images = [imageA, imageB];
+
+  if (productC) {
+    const imageC = await toFile(productC, productC.name, {
+      type: productC.type,
+    });
+    images.push(imageC);
+  }
+
   const response = await client.images.edit({
     model: IMAGE_MODEL,
-    image: [imageA, imageB],
-    prompt: BUNDLE_PROMPT,
+    image: images,
+    prompt: buildBundlePrompt(productC ? 3 : 2),
     size: "1024x1024",
     quality: "high",
     input_fidelity: "high",

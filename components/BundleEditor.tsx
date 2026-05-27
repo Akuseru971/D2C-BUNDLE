@@ -4,6 +4,7 @@ import { useState } from "react";
 import BundleCanvasView from "@/components/BundleCanvasView";
 import {
   CANVAS_CENTER,
+  getProductLayerOrder,
   LAYER_LABELS,
   MAX_SCALE,
   MIN_SCALE,
@@ -14,11 +15,10 @@ import {
   clampScale,
 } from "@/lib/bundle-editor";
 
-const LAYER_ORDER: LayerId[] = ["productA", "plus", "productB", "badge"];
-
 type BundleEditorProps = {
   productAUrl: string;
   productBUrl: string;
+  productCUrl?: string | null;
   transforms: BundleTransforms;
   onTransformsChange: (
     transforms: BundleTransforms | ((prev: BundleTransforms) => BundleTransforms),
@@ -36,6 +36,7 @@ type BundleEditorProps = {
 export default function BundleEditor({
   productAUrl,
   productBUrl,
+  productCUrl = null,
   transforms,
   onTransformsChange,
   onBeginGesture,
@@ -47,9 +48,13 @@ export default function BundleEditor({
   onReset,
   onInteractingChange,
 }: BundleEditorProps) {
+  const hasProductC = Boolean(productCUrl);
+  const layerOrder = getProductLayerOrder(hasProductC);
   const [selectedLayer, setSelectedLayer] = useState<LayerId>("productA");
+  const activeLayer =
+    selectedLayer === "productC" && !hasProductC ? "productA" : selectedLayer;
 
-  const minScale = selectedLayer === "badge" ? MIN_SCALE_BADGE : MIN_SCALE;
+  const minScale = activeLayer === "badge" ? MIN_SCALE_BADGE : MIN_SCALE;
 
   const updateLayerScale = (value: number) => {
     onTransformsChange((prev) => ({
@@ -66,9 +71,9 @@ export default function BundleEditor({
     const delta = direction === "in" ? SCALE_STEP : -SCALE_STEP;
     onTransformsChange((prev) => ({
       ...prev,
-      [selectedLayer]: {
-        ...prev[selectedLayer],
-        scale: clampScale(prev[selectedLayer].scale + delta, selectedLayer),
+      [activeLayer]: {
+        ...prev[activeLayer],
+        scale: clampScale(prev[activeLayer].scale + delta, activeLayer),
       },
     }));
     onCommit();
@@ -127,7 +132,7 @@ export default function BundleEditor({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {LAYER_ORDER.map((layer) => (
+        {layerOrder.map((layer) => (
           <button
             key={layer}
             type="button"
@@ -146,7 +151,7 @@ export default function BundleEditor({
       <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 backdrop-blur-sm">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-medium text-zinc-600">
-            Scale — {LAYER_LABELS[selectedLayer]}
+            Scale — {LAYER_LABELS[activeLayer]}
           </span>
           <span className="text-xs tabular-nums text-zinc-500">
             {Math.round(selected.scale * 100)}%
@@ -189,9 +194,10 @@ export default function BundleEditor({
       <BundleCanvasView
         productAUrl={productAUrl}
         productBUrl={productBUrl}
+        productCUrl={productCUrl}
         transforms={transforms}
         interactive
-        selectedLayer={selectedLayer}
+        selectedLayer={activeLayer}
         onSelectLayer={setSelectedLayer}
         onTransformsChange={onTransformsChange}
         onBeginGesture={onBeginGesture}
