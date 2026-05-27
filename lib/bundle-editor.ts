@@ -50,6 +50,10 @@ export const MIN_ROTATION = -180;
 export const MAX_ROTATION = 180;
 export const ROTATION_STEP = 1;
 export const ROTATION_BUTTON_STEP = 15;
+/** Degrees within which rotation snaps to 0° or ±90°. */
+export const ROTATION_SNAP_THRESHOLD = 7;
+
+const ROTATION_SNAP_ANGLES = [0, 90, -90] as const;
 
 export const EXPORT_SIZE = 1024;
 
@@ -67,6 +71,23 @@ export function clampRotation(degrees: number): number {
   if (value > 180) value -= 360;
   if (value < -180) value += 360;
   return Math.min(MAX_ROTATION, Math.max(MIN_ROTATION, value));
+}
+
+/** Clamps then lightly snaps to 0° or ±90° when close. */
+export function applyRotation(degrees: number): number {
+  const clamped = clampRotation(degrees);
+  let snapped = clamped;
+  let nearestDist = ROTATION_SNAP_THRESHOLD + 1;
+
+  for (const angle of ROTATION_SNAP_ANGLES) {
+    const dist = Math.abs(clamped - angle);
+    if (dist <= ROTATION_SNAP_THRESHOLD && dist < nearestDist) {
+      snapped = angle;
+      nearestDist = dist;
+    }
+  }
+
+  return snapped;
 }
 
 export const CANVAS_CENTER = { x: 50, y: 50 } as const;

@@ -16,7 +16,7 @@ import {
   SCALE_STEP,
   type BundleTransforms,
   type LayerId,
-  clampRotation,
+  applyRotation,
   clampScale,
 } from "@/lib/bundle-editor";
 
@@ -110,7 +110,7 @@ export default function BundleEditor({
       ...prev,
       [activeLayer]: {
         ...prev[activeLayer],
-        rotation: clampRotation(value),
+        rotation: applyRotation(value),
       },
     }));
   };
@@ -123,7 +123,7 @@ export default function BundleEditor({
       ...prev,
       [activeLayer]: {
         ...prev[activeLayer],
-        rotation: clampRotation(prev[activeLayer].rotation + delta),
+        rotation: applyRotation(prev[activeLayer].rotation + delta),
       },
     }));
     onCommit();
@@ -249,7 +249,7 @@ export default function BundleEditor({
       <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 backdrop-blur-sm">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-medium text-zinc-600">
-            Rotation — {LAYER_LABELS[activeLayer]}
+            Rotation — {LAYER_LABELS[activeLayer]} (snaps at 0° / ±90°)
           </span>
           <div className="flex items-center gap-2">
             <span className="text-xs tabular-nums text-zinc-500">

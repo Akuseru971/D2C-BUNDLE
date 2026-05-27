@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   clampPosition,
-  clampRotation,
+  applyRotation,
   clampScale,
   SCALE_STEP,
   type BundleTransforms,
@@ -396,7 +396,7 @@ export default function BundleCanvasView({
         ...prev,
         [drag.layer]: {
           ...drag.origin,
-          rotation: clampRotation(drag.origin.rotation + deltaDeg),
+          rotation: applyRotation(drag.origin.rotation + deltaDeg),
         },
       }));
     } else {
@@ -486,7 +486,7 @@ export default function BundleCanvasView({
       />
       {interactive && (
         <p className="pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-medium text-zinc-500 shadow-sm backdrop-blur">
-          Corners: resize · Top handle: rotate · Drag inside: move
+          Corners: resize · Top: rotate (snaps 0°/90°) · Inside: move
         </p>
       )}
     </div>
