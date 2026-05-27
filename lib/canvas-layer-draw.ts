@@ -1,4 +1,8 @@
 import type { LayerBounds } from "@/lib/bundle-layout";
+import {
+  drawTransformHandles,
+  type TransformHandleId,
+} from "@/lib/canvas-transform-handles";
 
 export function drawOrientedImage(
   ctx: CanvasRenderingContext2D,
@@ -48,4 +52,15 @@ export function drawOrientedSelectionRing(
     bounds.height + pad * 2,
   );
   ctx.restore();
+}
+
+export function drawOrientedSelection(
+  ctx: CanvasRenderingContext2D,
+  bounds: LayerBounds,
+  rotationDegrees: number,
+  canvasSize: number,
+  activeHandle: TransformHandleId | null = null,
+) {
+  drawOrientedSelectionRing(ctx, bounds, rotationDegrees, canvasSize);
+  drawTransformHandles(ctx, bounds, rotationDegrees, canvasSize, activeHandle);
 }
