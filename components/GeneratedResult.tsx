@@ -71,7 +71,7 @@ export default function GeneratedResult({
         <div>
           <h2 className="text-lg font-semibold text-zinc-900">Generated bundle</h2>
           <p className="mt-1 text-sm text-zinc-500">
-            Live preview updates as you edit. Use Undo to go back.
+            WYSIWYG editor — what you see while editing matches the preview.
           </p>
         </div>
         <div className="mt-2 flex gap-2 sm:mt-0">
@@ -100,8 +100,8 @@ export default function GeneratedResult({
         </div>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:gap-8">
-        <div className="order-1 lg:order-2">
+      <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:items-start lg:gap-8">
+        <div className="order-1 lg:order-2 lg:sticky lg:top-6">
           <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-400">
             Live preview
           </p>
