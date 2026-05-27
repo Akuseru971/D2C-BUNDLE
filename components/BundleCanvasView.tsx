@@ -236,7 +236,7 @@ export default function BundleCanvasView({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-2xl border-2 border-zinc-200 bg-[#f5f5f5] ${
+      className={`relative overflow-hidden rounded-2xl border-2 border-zinc-200 bg-white ${
         borderStyle === "dashed" ? "border-dashed" : ""
       } ${className}`}
     >

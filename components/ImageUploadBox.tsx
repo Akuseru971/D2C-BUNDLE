@@ -102,7 +102,7 @@ export default function ImageUploadBox({
         />
 
         {previewUrl ? (
-          <div className="flex h-full w-full flex-col items-center gap-3 rounded-xl bg-[#f5f5f5] p-3">
+          <div className="flex h-full w-full flex-col items-center gap-3 rounded-xl bg-white p-3">
             {processedPreview ? (
               /* eslint-disable-next-line @next/next/no-img-element */
               <img
