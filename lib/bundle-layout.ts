@@ -3,7 +3,7 @@ import type { BundleTransforms, LayerId, LayerTransform } from "@/lib/bundle-edi
 export const PRODUCT_MAX_HEIGHT_RATIO_TWO = 0.34;
 export const PRODUCT_MAX_HEIGHT_RATIO_THREE = 0.26;
 export const PRODUCT_MAX_WIDTH_RATIO = 0.85;
-export const BADGE_MAX_WIDTH_RATIO = 0.34;
+export const LOGO_MAX_WIDTH_RATIO = 0.34;
 
 export type LayerBounds = {
   x: number;
@@ -50,14 +50,14 @@ export function computeProductBounds(
   };
 }
 
-export function computeBadgeBounds(
+export function computeLogoBounds(
   img: HTMLImageElement,
   transform: LayerTransform,
   canvasSize: number,
 ): LayerBounds {
   const centerX = (transform.x / 100) * canvasSize;
   const centerY = (transform.y / 100) * canvasSize;
-  const maxWidth = canvasSize * BADGE_MAX_WIDTH_RATIO * transform.scale;
+  const maxWidth = canvasSize * LOGO_MAX_WIDTH_RATIO * transform.scale;
   const ratio = img.width / img.height;
   const drawWidth = maxWidth;
   const drawHeight = drawWidth / ratio;
@@ -76,7 +76,7 @@ export type BundleImageSet = {
   productA: HTMLImageElement;
   productB: HTMLImageElement;
   productC: HTMLImageElement | null;
-  badge: HTMLImageElement;
+  logo: HTMLImageElement | null;
 };
 
 export function getLayerBounds(
@@ -110,7 +110,8 @@ export function getLayerBounds(
         canvasSize,
         true,
       );
-    case "badge":
-      return computeBadgeBounds(images.badge, transforms.badge, canvasSize);
+    case "logo":
+      if (!images.logo) return null;
+      return computeLogoBounds(images.logo, transforms.logo, canvasSize);
   }
 }

@@ -33,6 +33,7 @@ export default function HomePage() {
   const productA = useProductUpload();
   const productB = useProductUpload();
   const productC = useProductUpload();
+  const logo = useProductUpload();
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -107,7 +108,7 @@ export default function HomePage() {
         </header>
 
         <section className="mt-10 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-8">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <ImageUploadBox
               label="Product A"
               file={productA.file}
@@ -129,7 +130,18 @@ export default function HomePage() {
               onFileChange={productC.setProduct}
               onError={setError}
             />
+            <ImageUploadBox
+              label="Logo"
+              file={logo.file}
+              previewUrl={logo.previewUrl}
+              onFileChange={logo.setProduct}
+              onError={setError}
+            />
           </div>
+          <p className="mt-4 text-center text-xs text-zinc-500">
+            Your logo is placed on &quot;Your layout&quot; only — not generated
+            by AI — so you always get the exact file you uploaded.
+          </p>
 
           {error && (
             <div
@@ -171,6 +183,7 @@ export default function HomePage() {
               productAUrl={productA.previewUrl}
               productBUrl={productB.previewUrl}
               productCUrl={productC.previewUrl}
+              logoUrl={logo.previewUrl}
               onGenerateAgain={handleGenerateAgain}
             />
           )}

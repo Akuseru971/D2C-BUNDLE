@@ -13,6 +13,7 @@ type GeneratedResultProps = {
   productAUrl: string;
   productBUrl: string;
   productCUrl?: string | null;
+  logoUrl?: string | null;
   onGenerateAgain: () => void;
 };
 
@@ -21,6 +22,7 @@ export default function GeneratedResult({
   productAUrl,
   productBUrl,
   productCUrl = null,
+  logoUrl = null,
   onGenerateAgain,
 }: GeneratedResultProps) {
   const hasProductC = Boolean(productCUrl);
@@ -51,7 +53,12 @@ export default function GeneratedResult({
   const handleDownload = async () => {
     setIsExporting(true);
     try {
-      await preloadBundleImages(productAUrl, productBUrl, productCUrl);
+      await preloadBundleImages(
+        productAUrl,
+        productBUrl,
+        productCUrl,
+        logoUrl,
+      );
       const href =
         activePreview === "ai"
           ? aiImageUrl
@@ -60,6 +67,7 @@ export default function GeneratedResult({
               productBUrl,
               transforms,
               productCUrl,
+              logoUrl,
             );
 
       const link = document.createElement("a");
@@ -118,6 +126,7 @@ export default function GeneratedResult({
               productAUrl={productAUrl}
               productBUrl={productBUrl}
               productCUrl={productCUrl}
+              logoUrl={logoUrl}
               transforms={transforms}
               isInteracting={isInteracting}
               className="shadow-md"
@@ -142,6 +151,7 @@ export default function GeneratedResult({
             productAUrl={productAUrl}
             productBUrl={productBUrl}
             productCUrl={productCUrl}
+            logoUrl={logoUrl}
             transforms={transforms}
             onTransformsChange={setTransforms}
             onBeginGesture={beginGesture}

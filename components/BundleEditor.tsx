@@ -4,11 +4,11 @@ import { useState } from "react";
 import BundleCanvasView from "@/components/BundleCanvasView";
 import {
   CANVAS_CENTER,
-  getProductLayerOrder,
+  getEditorLayerOrder,
   LAYER_LABELS,
   MAX_SCALE,
   MIN_SCALE,
-  MIN_SCALE_BADGE,
+  MIN_SCALE_LOGO,
   SCALE_STEP,
   type BundleTransforms,
   type LayerId,
@@ -19,6 +19,7 @@ type BundleEditorProps = {
   productAUrl: string;
   productBUrl: string;
   productCUrl?: string | null;
+  logoUrl?: string | null;
   transforms: BundleTransforms;
   onTransformsChange: (
     transforms: BundleTransforms | ((prev: BundleTransforms) => BundleTransforms),
@@ -37,6 +38,7 @@ export default function BundleEditor({
   productAUrl,
   productBUrl,
   productCUrl = null,
+  logoUrl = null,
   transforms,
   onTransformsChange,
   onBeginGesture,
@@ -49,19 +51,25 @@ export default function BundleEditor({
   onInteractingChange,
 }: BundleEditorProps) {
   const hasProductC = Boolean(productCUrl);
-  const layerOrder = getProductLayerOrder(hasProductC);
+  const hasLogo = Boolean(logoUrl);
+  const layerOrder = getEditorLayerOrder(hasProductC, hasLogo);
   const [selectedLayer, setSelectedLayer] = useState<LayerId>("productA");
-  const activeLayer =
-    selectedLayer === "productC" && !hasProductC ? "productA" : selectedLayer;
 
-  const minScale = activeLayer === "badge" ? MIN_SCALE_BADGE : MIN_SCALE;
+  const activeLayer =
+    selectedLayer === "productC" && !hasProductC
+      ? "productA"
+      : selectedLayer === "logo" && !hasLogo
+        ? "productA"
+        : selectedLayer;
+
+  const minScale = activeLayer === "logo" ? MIN_SCALE_LOGO : MIN_SCALE;
 
   const updateLayerScale = (value: number) => {
     onTransformsChange((prev) => ({
       ...prev,
-      [selectedLayer]: {
-        ...prev[selectedLayer],
-        scale: clampScale(value, selectedLayer),
+      [activeLayer]: {
+        ...prev[activeLayer],
+        scale: clampScale(value, activeLayer),
       },
     }));
   };
@@ -83,8 +91,8 @@ export default function BundleEditor({
     onBeginGesture();
     onTransformsChange((prev) => ({
       ...prev,
-      [selectedLayer]: {
-        ...prev[selectedLayer],
+      [activeLayer]: {
+        ...prev[activeLayer],
         x: CANVAS_CENTER.x,
         y: CANVAS_CENTER.y,
       },
@@ -92,7 +100,7 @@ export default function BundleEditor({
     onCommit();
   };
 
-  const selected = transforms[selectedLayer];
+  const selected = transforms[activeLayer];
 
   return (
     <div className="space-y-4">
@@ -148,6 +156,12 @@ export default function BundleEditor({
         ))}
       </div>
 
+      {!hasLogo && (
+        <p className="text-xs text-zinc-500">
+          Upload a logo above to enable the Logo layer in the editor.
+        </p>
+      )}
+
       <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 backdrop-blur-sm">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-medium text-zinc-600">
@@ -195,6 +209,7 @@ export default function BundleEditor({
         productAUrl={productAUrl}
         productBUrl={productBUrl}
         productCUrl={productCUrl}
+        logoUrl={logoUrl}
         transforms={transforms}
         interactive
         selectedLayer={activeLayer}

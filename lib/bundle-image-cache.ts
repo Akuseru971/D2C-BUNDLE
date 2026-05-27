@@ -2,15 +2,14 @@ import {
   processBadgeImage,
   processProductImage,
 } from "@/lib/remove-white-background";
-import { BUNDLE_BADGE_SRC } from "@/lib/bundle-editor";
 import type { BundleImageSet } from "@/lib/bundle-layout";
 
 const rawCache = new Map<string, HTMLImageElement>();
 const productCache = new Map<string, HTMLImageElement>();
-const badgeCache = new Map<string, HTMLImageElement>();
+const logoCache = new Map<string, HTMLImageElement>();
 const rawLoadPromises = new Map<string, Promise<HTMLImageElement>>();
 const productLoadPromises = new Map<string, Promise<HTMLImageElement>>();
-let badgeLoadPromise: Promise<HTMLImageElement> | null = null;
+const logoLoadPromises = new Map<string, Promise<HTMLImageElement>>();
 
 function loadRawImage(src: string): Promise<HTMLImageElement> {
   const cached = rawCache.get(src);
@@ -63,51 +62,44 @@ export function getCachedProductImage(
   return promise;
 }
 
-export function getCachedBadge(): Promise<HTMLImageElement> {
-  const key = BUNDLE_BADGE_SRC;
-  const cached = badgeCache.get(key);
+export function getCachedLogo(src: string): Promise<HTMLImageElement> {
+  const cached = logoCache.get(src);
   if (cached?.complete) return Promise.resolve(cached);
 
-  if (badgeLoadPromise) return badgeLoadPromise;
+  const pending = logoLoadPromises.get(src);
+  if (pending) return pending;
 
-  badgeLoadPromise = loadRawImage(key)
+  const promise = loadRawImage(src)
     .then(processBadgeImage)
     .then((img) => {
-      badgeCache.set(key, img);
-      badgeLoadPromise = null;
+      logoCache.set(src, img);
+      logoLoadPromises.delete(src);
       return img;
     })
     .catch((err) => {
-      badgeLoadPromise = null;
+      logoLoadPromises.delete(src);
       throw err;
     });
 
-  return badgeLoadPromise;
+  logoLoadPromises.set(src, promise);
+  return promise;
 }
 
 export function preloadBundleImages(
   productAUrl: string,
   productBUrl: string,
   productCUrl?: string | null,
+  logoUrl?: string | null,
 ): Promise<BundleImageSet> {
-  const loads: [
-    Promise<HTMLImageElement>,
-    Promise<HTMLImageElement>,
-    Promise<HTMLImageElement | null>,
-    Promise<HTMLImageElement>,
-  ] = [
+  return Promise.all([
     getCachedProductImage(productAUrl),
     getCachedProductImage(productBUrl),
-    productCUrl
-      ? getCachedProductImage(productCUrl)
-      : Promise.resolve(null),
-    getCachedBadge(),
-  ];
-
-  return Promise.all(loads).then(([productA, productB, productC, badge]) => ({
+    productCUrl ? getCachedProductImage(productCUrl) : Promise.resolve(null),
+    logoUrl ? getCachedLogo(logoUrl) : Promise.resolve(null),
+  ]).then(([productA, productB, productC, logo]) => ({
     productA,
     productB,
     productC,
-    badge,
+    logo,
   }));
 }

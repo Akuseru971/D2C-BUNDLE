@@ -8,7 +8,7 @@ function cloneTransforms(t: BundleTransforms): BundleTransforms {
     productA: { ...t.productA },
     productB: { ...t.productB },
     productC: { ...t.productC },
-    badge: { ...t.badge },
+    logo: { ...t.logo },
   };
 }
 

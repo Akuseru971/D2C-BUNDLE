@@ -2,7 +2,7 @@ import type { BundleTransforms } from "@/lib/bundle-editor";
 import { EXPORT_SIZE } from "@/lib/bundle-editor";
 import type { BundleImageSet } from "@/lib/bundle-layout";
 import {
-  computeBadgeBounds,
+  computeLogoBounds,
   computeProductBounds,
 } from "@/lib/bundle-layout";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
@@ -25,13 +25,13 @@ function drawProductLayer(
   ctx.restore();
 }
 
-function drawBadge(
+function drawLogo(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
-  transform: BundleTransforms["badge"],
+  transform: BundleTransforms["logo"],
   canvasSize: number,
 ) {
-  const bounds = computeBadgeBounds(img, transform, canvasSize);
+  const bounds = computeLogoBounds(img, transform, canvasSize);
   ctx.drawImage(img, bounds.x, bounds.y, bounds.width, bounds.height);
 }
 
@@ -71,7 +71,9 @@ export function renderBundleCanvas(
     );
   }
 
-  drawBadge(ctx, images.badge, transforms.badge, canvasSize);
+  if (images.logo) {
+    drawLogo(ctx, images.logo, transforms.logo, canvasSize);
+  }
 }
 
 export async function renderBundleToDataUrl(
@@ -79,11 +81,13 @@ export async function renderBundleToDataUrl(
   productBUrl: string,
   transforms: BundleTransforms,
   productCUrl?: string | null,
+  logoUrl?: string | null,
 ): Promise<string> {
   const images = await preloadBundleImages(
     productAUrl,
     productBUrl,
     productCUrl,
+    logoUrl,
   );
 
   const canvas = document.createElement("canvas");

@@ -11,9 +11,9 @@ const BACKGROUND = `- Single uniform very light grey background (#f5f5f5) — pe
 - Products directly on this background with NO white squares, NO boxes, NO rectangular padding around products.
 - Remove white or off-white backdrops from source cutouts.
 - Subtle realistic shadows under products only.
-- A promotional badge in the top-right corner when applicable — must not overlap products.
+- No promotional badge, logo overlay, or corner graphics.
 - No plus symbol. No "+" sign. No circular plus badge. No bundle "+" icon.
-- No text, slogans, or decorative elements except the top-right promo badge if present.
+- No text, slogans, or decorative elements.
 - No packaging.`;
 
 export function buildBundlePrompt(productCount: 2 | 3): string {
