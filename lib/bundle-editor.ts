@@ -55,7 +55,7 @@ export const ROTATION_SNAP_THRESHOLD = 7;
 
 const ROTATION_SNAP_ANGLES = [0, 90, -90] as const;
 
-export const EXPORT_SIZE = 1024;
+export const EXPORT_SIZE = 1500;
 
 export function clampScale(scale: number, layer?: LayerId): number {
   const min = layer === "logo" ? MIN_SCALE_LOGO : MIN_SCALE;

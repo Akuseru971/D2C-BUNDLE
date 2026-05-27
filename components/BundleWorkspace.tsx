@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import BundleEditor from "@/components/BundleEditor";
 import LiveBundlePreview from "@/components/LiveBundlePreview";
 import { useTransformHistory } from "@/hooks/useTransformHistory";
-import { getDefaultTransforms } from "@/lib/bundle-editor";
+import { EXPORT_SIZE, getDefaultTransforms } from "@/lib/bundle-editor";
 import { renderBundleToDataUrl } from "@/lib/export-bundle-canvas";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 
@@ -99,6 +99,9 @@ export default function BundleWorkspace({
             isInteracting={isInteracting}
             className="shadow-md"
           />
+          <p className="mt-2 text-center text-xs text-zinc-500">
+            Export format: {EXPORT_SIZE} × {EXPORT_SIZE} px (1:1)
+          </p>
         </div>
 
         <div className="order-2 lg:order-1">

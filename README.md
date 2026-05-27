@@ -8,7 +8,7 @@ Compose marketplace-ready 1:1 e-commerce bundle images from your own product pho
 - Optional logo overlay (your exact file)
 - WYSIWYG canvas editor with undo/redo
 - Click elements to select, drag to move, scroll to zoom
-- Download 1024×1024 PNG
+- Download 1500×1500 PNG
 - No database, no authentication (MVP)
 
 ## Tech stack
