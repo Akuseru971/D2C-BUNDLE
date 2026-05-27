@@ -3,7 +3,7 @@ import type { BundleTransforms, LayerId, LayerTransform } from "@/lib/bundle-edi
 export const PRODUCT_MAX_HEIGHT_RATIO_TWO = 0.34;
 export const PRODUCT_MAX_HEIGHT_RATIO_THREE = 0.26;
 export const PRODUCT_MAX_WIDTH_RATIO = 0.85;
-export const LOGO_MAX_WIDTH_RATIO = 0.34;
+export const LOGO_MAX_WIDTH_RATIO = 0.17;
 
 export type LayerBounds = {
   x: number;
@@ -114,4 +114,41 @@ export function getLayerBounds(
       if (!images.logo) return null;
       return computeLogoBounds(images.logo, transforms.logo, canvasSize);
   }
+}
+
+/** Top-most layer first (matches draw order: products then logo on top). */
+function getHitTestLayerOrder(images: BundleImageSet): LayerId[] {
+  const layers: LayerId[] = ["productA", "productB"];
+  if (images.productC) layers.push("productC");
+  if (images.logo) layers.push("logo");
+  return layers.reverse();
+}
+
+function pointInBounds(
+  x: number,
+  y: number,
+  bounds: LayerBounds,
+): boolean {
+  return (
+    x >= bounds.x &&
+    x <= bounds.x + bounds.width &&
+    y >= bounds.y &&
+    y <= bounds.y + bounds.height
+  );
+}
+
+export function pickLayerAtPoint(
+  x: number,
+  y: number,
+  images: BundleImageSet,
+  transforms: BundleTransforms,
+  canvasSize: number,
+): LayerId | null {
+  for (const layer of getHitTestLayerOrder(images)) {
+    const bounds = getLayerBounds(layer, images, transforms, canvasSize);
+    if (bounds && pointInBounds(x, y, bounds)) {
+      return layer;
+    }
+  }
+  return null;
 }

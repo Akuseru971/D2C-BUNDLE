@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import GeneratedResult from "@/components/GeneratedResult";
 import ImageUploadBox from "@/components/ImageUploadBox";
+import GenerationProgressBar from "@/components/GenerationProgressBar";
 import LoadingSpinner from "@/components/LoadingSpinner";
 
 function useProductUpload() {
@@ -38,6 +39,46 @@ export default function HomePage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [generatedImage, setGeneratedImage] = useState<string | null>(null);
+  const [generationProgress, setGenerationProgress] = useState(0);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
+  const progressResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearProgressTimers = useCallback(() => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+    if (progressResetRef.current) {
+      clearTimeout(progressResetRef.current);
+      progressResetRef.current = null;
+    }
+  }, []);
+
+  const startGenerationProgress = useCallback(() => {
+    clearProgressTimers();
+    setGenerationProgress(2);
+    const start = Date.now();
+    progressIntervalRef.current = setInterval(() => {
+      const elapsed = Date.now() - start;
+      const next = Math.min(92, 92 * (1 - Math.exp(-elapsed / 18000)));
+      setGenerationProgress(next);
+    }, 80);
+  }, [clearProgressTimers]);
+
+  const completeGenerationProgress = useCallback(() => {
+    clearProgressTimers();
+    setGenerationProgress(100);
+    progressResetRef.current = setTimeout(() => setGenerationProgress(0), 700);
+  }, [clearProgressTimers]);
+
+  const resetGenerationProgress = useCallback(() => {
+    clearProgressTimers();
+    setGenerationProgress(0);
+  }, [clearProgressTimers]);
+
+  useEffect(() => () => clearProgressTimers(), [clearProgressTimers]);
 
   const canGenerate =
     Boolean(productA.file && productB.file) && !isLoading;
@@ -51,6 +92,7 @@ export default function HomePage() {
     setError(null);
     setIsLoading(true);
     setGeneratedImage(null);
+    startGenerationProgress();
 
     try {
       const formData = new FormData();
@@ -79,7 +121,9 @@ export default function HomePage() {
       }
 
       setGeneratedImage(data.image);
+      completeGenerationProgress();
     } catch (err) {
+      resetGenerationProgress();
       setError(
         err instanceof Error ? err.message : "Failed to generate bundle image.",
       );
@@ -168,10 +212,8 @@ export default function HomePage() {
             )}
           </button>
 
-          {isLoading && (
-            <p className="mt-3 text-center text-sm text-zinc-500">
-              Creating your bundle image. This may take up to a minute…
-            </p>
+          {(isLoading || generationProgress > 0) && (
+            <GenerationProgressBar progress={generationProgress} />
           )}
         </section>
 

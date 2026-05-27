@@ -12,14 +12,14 @@ const DEFAULT_TWO_PRODUCTS: BundleTransforms = {
   productA: { x: 50, y: 30, scale: 1 },
   productB: { x: 50, y: 70, scale: 1 },
   productC: { x: 50, y: 50, scale: 1 },
-  logo: { x: 88, y: 14, scale: 1.15 },
+  logo: { x: 88, y: 14, scale: 0.575 },
 };
 
 const DEFAULT_THREE_PRODUCTS: BundleTransforms = {
   productA: { x: 50, y: 22, scale: 1 },
   productB: { x: 50, y: 50, scale: 1 },
   productC: { x: 50, y: 78, scale: 1 },
-  logo: { x: 88, y: 14, scale: 1.15 },
+  logo: { x: 88, y: 14, scale: 0.575 },
 };
 
 export function getDefaultTransforms(hasProductC: boolean): BundleTransforms {

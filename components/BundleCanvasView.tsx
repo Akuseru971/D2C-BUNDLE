@@ -8,7 +8,7 @@ import {
   type BundleTransforms,
   type LayerId,
 } from "@/lib/bundle-editor";
-import { getLayerBounds } from "@/lib/bundle-layout";
+import { getLayerBounds, pickLayerAtPoint } from "@/lib/bundle-layout";
 import type { BundleImageSet } from "@/lib/bundle-layout";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import { renderBundleCanvas } from "@/lib/export-bundle-canvas";
@@ -160,11 +160,28 @@ export default function BundleCanvasView({
 
   const handlePointerDown = (event: React.PointerEvent) => {
     if (!interactive || !onTransformsChange) return;
-    if (!imagesRef.current) return;
+    const images = imagesRef.current;
+    const canvas = canvasRef.current;
+    if (!images || !canvas) return;
 
-    const layer = selectedRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const size = rect.width;
+    const canvasX = ((event.clientX - rect.left) / rect.width) * size;
+    const canvasY = ((event.clientY - rect.top) / rect.height) * size;
 
-    onSelectLayer?.(layer);
+    const picked = pickLayerAtPoint(
+      canvasX,
+      canvasY,
+      images,
+      transformsRef.current,
+      size,
+    );
+    const layer = picked ?? selectedRef.current;
+
+    if (picked) {
+      selectedRef.current = picked;
+      onSelectLayer?.(picked);
+    }
     onBeginGesture?.();
     onInteractingChange?.(true);
     setIsDragging(true);
@@ -255,7 +272,7 @@ export default function BundleCanvasView({
       />
       {interactive && (
         <p className="pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-medium text-zinc-500 shadow-sm backdrop-blur">
-          Selected layer locked · Drag anywhere · Scroll to zoom
+          Click an element to select · Drag to move · Scroll to zoom
         </p>
       )}
     </div>
