@@ -7,14 +7,14 @@ import {
   LAYER_LABELS,
   MAX_SCALE,
   MIN_SCALE,
-  MIN_SCALE_LOGO,
+  MIN_SCALE_BADGE,
   SCALE_STEP,
   type BundleTransforms,
   type LayerId,
   clampScale,
 } from "@/lib/bundle-editor";
 
-const LAYER_ORDER: LayerId[] = ["productA", "plus", "productB", "wmfLogo"];
+const LAYER_ORDER: LayerId[] = ["productA", "plus", "productB", "badge"];
 
 type BundleEditorProps = {
   productAUrl: string;
@@ -49,7 +49,7 @@ export default function BundleEditor({
 }: BundleEditorProps) {
   const [selectedLayer, setSelectedLayer] = useState<LayerId>("productA");
 
-  const minScale = selectedLayer === "wmfLogo" ? MIN_SCALE_LOGO : MIN_SCALE;
+  const minScale = selectedLayer === "badge" ? MIN_SCALE_BADGE : MIN_SCALE;
 
   const updateLayerScale = (value: number) => {
     onTransformsChange((prev) => ({

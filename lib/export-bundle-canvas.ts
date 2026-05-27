@@ -2,8 +2,8 @@ import type { BundleTransforms } from "@/lib/bundle-editor";
 import { EXPORT_SIZE } from "@/lib/bundle-editor";
 import type { BundleImageSet } from "@/lib/bundle-layout";
 import {
+  computeBadgeBounds,
   computeProductBounds,
-  computeWmfLogoBounds,
 } from "@/lib/bundle-layout";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import {
@@ -28,13 +28,13 @@ function drawProductLayer(
   ctx.restore();
 }
 
-function drawWmfLogo(
+function drawBadge(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
-  transform: BundleTransforms["wmfLogo"],
+  transform: BundleTransforms["badge"],
   canvasSize: number,
 ) {
-  const bounds = computeWmfLogoBounds(img, transform, canvasSize);
+  const bounds = computeBadgeBounds(img, transform, canvasSize);
   ctx.drawImage(img, bounds.x, bounds.y, bounds.width, bounds.height);
 }
 
@@ -56,7 +56,7 @@ export function renderBundleCanvas(
 
   drawProductLayer(ctx, images.productB, transforms.productB, canvasSize);
 
-  drawWmfLogo(ctx, images.wmfLogo, transforms.wmfLogo, canvasSize);
+  drawBadge(ctx, images.badge, transforms.badge, canvasSize);
 }
 
 export { PRODUCT_MAX_HEIGHT_RATIO } from "@/lib/bundle-layout";

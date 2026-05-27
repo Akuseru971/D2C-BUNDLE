@@ -3,7 +3,8 @@ import { plusRadiusForCanvas } from "@/lib/plus-symbol-draw";
 
 export const PRODUCT_MAX_HEIGHT_RATIO = 0.34;
 export const PRODUCT_MAX_WIDTH_RATIO = 0.85;
-export const WMF_LOGO_MAX_WIDTH_RATIO = 0.2;
+/** Promo badge — larger default for top-right visibility */
+export const BADGE_MAX_WIDTH_RATIO = 0.34;
 
 export type LayerBounds = {
   x: number;
@@ -61,14 +62,14 @@ export function computePlusBounds(
   };
 }
 
-export function computeWmfLogoBounds(
+export function computeBadgeBounds(
   img: HTMLImageElement,
   transform: LayerTransform,
   canvasSize: number,
 ): LayerBounds {
   const centerX = (transform.x / 100) * canvasSize;
   const centerY = (transform.y / 100) * canvasSize;
-  const maxWidth = canvasSize * WMF_LOGO_MAX_WIDTH_RATIO * transform.scale;
+  const maxWidth = canvasSize * BADGE_MAX_WIDTH_RATIO * transform.scale;
   const ratio = img.width / img.height;
   const drawWidth = maxWidth;
   const drawHeight = drawWidth / ratio;
@@ -92,7 +93,7 @@ function pointInBounds(px: number, py: number, b: LayerBounds): boolean {
 export type BundleImageSet = {
   productA: HTMLImageElement;
   productB: HTMLImageElement;
-  wmfLogo: HTMLImageElement;
+  badge: HTMLImageElement;
 };
 
 export function getLayerBounds(
@@ -108,12 +109,11 @@ export function getLayerBounds(
       return computeProductBounds(images.productB, transforms.productB, canvasSize);
     case "plus":
       return computePlusBounds(transforms.plus, canvasSize);
-    case "wmfLogo":
-      return computeWmfLogoBounds(images.wmfLogo, transforms.wmfLogo, canvasSize);
+    case "badge":
+      return computeBadgeBounds(images.badge, transforms.badge, canvasSize);
   }
 }
 
-/** Hit-test for switching layer via canvas click (optional). */
 export function hitTestLayer(
   px: number,
   py: number,
@@ -121,9 +121,9 @@ export function hitTestLayer(
   transforms: BundleTransforms,
   canvasSize: number,
 ): LayerId | null {
-  const boundsLogo = computeWmfLogoBounds(
-    images.wmfLogo,
-    transforms.wmfLogo,
+  const boundsBadge = computeBadgeBounds(
+    images.badge,
+    transforms.badge,
     canvasSize,
   );
   const boundsB = computeProductBounds(
@@ -138,7 +138,7 @@ export function hitTestLayer(
     canvasSize,
   );
 
-  if (pointInBounds(px, py, boundsLogo)) return "wmfLogo";
+  if (pointInBounds(px, py, boundsBadge)) return "badge";
   if (pointInBounds(px, py, boundsB)) return "productB";
   if (pointInBounds(px, py, boundsPlus)) return "plus";
   if (pointInBounds(px, py, boundsA)) return "productA";

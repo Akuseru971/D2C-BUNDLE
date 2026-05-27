@@ -31,10 +31,10 @@ Composition:
 - Products must appear directly on this background with NO white squares, NO white boxes, NO white rectangular padding, and NO visible image boundaries around each product.
 - Remove any white or off-white backdrop from the source product cutouts — only the product itself should be visible, floating cleanly on the uniform grey.
 - Subtle realistic shadows under the products only (not box-shaped shadows).
-- A small WMF brand logo placed in the top-right corner (subtle, premium, not dominant).
-- No other text.
+- A promotional badge graphic in the top-right corner (visible, clean, not overlapping products).
+- No other text besides what is part of the provided product/badge artwork.
 - No slogans.
-- No badges (except the small WMF logo in the corner).
+- No extra badges beyond the top-right promo badge if supplied.
 - No other decorative elements.
 - No packaging.
 

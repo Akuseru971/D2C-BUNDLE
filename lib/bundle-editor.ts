@@ -1,4 +1,4 @@
-export type LayerId = "productA" | "plus" | "productB" | "wmfLogo";
+export type LayerId = "productA" | "plus" | "productB" | "badge";
 
 export type LayerTransform = {
   /** Horizontal position as % of canvas width (element center). */
@@ -15,27 +15,28 @@ export const DEFAULT_TRANSFORMS: BundleTransforms = {
   productA: { x: 50, y: 28, scale: 1 },
   plus: { x: 50, y: 50, scale: 1 },
   productB: { x: 50, y: 72, scale: 1 },
-  wmfLogo: { x: 90, y: 10, scale: 1 },
+  badge: { x: 88, y: 14, scale: 1.15 },
 };
 
 export const LAYER_LABELS: Record<LayerId, string> = {
   productA: "Product A",
   plus: "Plus symbol",
   productB: "Product B",
-  wmfLogo: "WMF Logo",
+  badge: "Promo badge",
 };
 
 export const MIN_SCALE = 0.35;
-export const MIN_SCALE_LOGO = 0.15;
+export const MIN_SCALE_BADGE = 0.2;
 export const MAX_SCALE = 2.5;
 export const SCALE_STEP = 0.05;
 
 export const EXPORT_SIZE = 1024;
 
-export const WMF_LOGO_SRC = "/wmf-logo.png";
+/** Top-right promotional badge (replace file in /public to update artwork). */
+export const BUNDLE_BADGE_SRC = "/bundle-badge.png";
 
 export function clampScale(scale: number, layer?: LayerId): number {
-  const min = layer === "wmfLogo" ? MIN_SCALE_LOGO : MIN_SCALE;
+  const min = layer === "badge" ? MIN_SCALE_BADGE : MIN_SCALE;
   return Math.min(MAX_SCALE, Math.max(min, scale));
 }
 

@@ -1,13 +1,12 @@
-import {
-  processLogoImage,
-  processProductImage,
-} from "@/lib/remove-white-background";
-import { WMF_LOGO_SRC } from "@/lib/bundle-editor";
+import { processProductImage } from "@/lib/remove-white-background";
+import { BUNDLE_BADGE_SRC } from "@/lib/bundle-editor";
 
 const rawCache = new Map<string, HTMLImageElement>();
 const productCache = new Map<string, HTMLImageElement>();
+const badgeCache = new Map<string, HTMLImageElement>();
 const rawLoadPromises = new Map<string, Promise<HTMLImageElement>>();
 const productLoadPromises = new Map<string, Promise<HTMLImageElement>>();
+let badgeLoadPromise: Promise<HTMLImageElement> | null = null;
 
 function loadRawImage(src: string): Promise<HTMLImageElement> {
   const cached = rawCache.get(src);
@@ -35,7 +34,6 @@ function loadRawImage(src: string): Promise<HTMLImageElement> {
   return promise;
 }
 
-/** Product image with white background removed — use for editor, preview & export. */
 export function getCachedProductImage(
   src: string,
 ): Promise<HTMLImageElement> {
@@ -61,39 +59,36 @@ export function getCachedProductImage(
   return promise;
 }
 
-export function getCachedImage(src: string): Promise<HTMLImageElement> {
-  return loadRawImage(src);
-}
-
-const wmfLogoCache = new Map<string, HTMLImageElement>();
-let wmfLogoPromise: Promise<HTMLImageElement> | null = null;
-
-export function getCachedWmfLogo(): Promise<HTMLImageElement> {
-  const key = WMF_LOGO_SRC;
-  const cached = wmfLogoCache.get(key);
+/** Promotional badge — full color artwork, no background stripping. */
+export function getCachedBadge(): Promise<HTMLImageElement> {
+  const key = BUNDLE_BADGE_SRC;
+  const cached = badgeCache.get(key);
   if (cached?.complete) return Promise.resolve(cached);
 
-  if (wmfLogoPromise) return wmfLogoPromise;
+  if (badgeLoadPromise) return badgeLoadPromise;
 
-  wmfLogoPromise = loadRawImage(key)
-    .then(processLogoImage)
-    .then((processed) => {
-      wmfLogoCache.set(key, processed);
-      wmfLogoPromise = null;
-      return processed;
+  badgeLoadPromise = loadRawImage(key)
+    .then((img) => {
+      badgeCache.set(key, img);
+      badgeLoadPromise = null;
+      return img;
     })
     .catch((err) => {
-      wmfLogoPromise = null;
+      badgeLoadPromise = null;
       throw err;
     });
 
-  return wmfLogoPromise;
+  return badgeLoadPromise;
+}
+
+export function getCachedImage(src: string): Promise<HTMLImageElement> {
+  return loadRawImage(src);
 }
 
 export type BundleImages = {
   productA: HTMLImageElement;
   productB: HTMLImageElement;
-  wmfLogo: HTMLImageElement;
+  badge: HTMLImageElement;
 };
 
 export function preloadBundleImages(
@@ -103,10 +98,10 @@ export function preloadBundleImages(
   return Promise.all([
     getCachedProductImage(productAUrl),
     getCachedProductImage(productBUrl),
-    getCachedWmfLogo(),
-  ]).then(([productA, productB, wmfLogo]) => ({
+    getCachedBadge(),
+  ]).then(([productA, productB, badge]) => ({
     productA,
     productB,
-    wmfLogo,
+    badge,
   }));
 }
