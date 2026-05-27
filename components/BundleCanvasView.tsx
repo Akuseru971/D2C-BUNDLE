@@ -8,9 +8,10 @@ import {
   type BundleTransforms,
   type LayerId,
 } from "@/lib/bundle-editor";
-import { getLayerBounds, hitTestLayer } from "@/lib/bundle-layout";
-import { renderBundleCanvas } from "@/lib/export-bundle-canvas";
+import { getLayerBounds } from "@/lib/bundle-layout";
+import type { BundleImages } from "@/lib/bundle-image-cache";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
+import { renderBundleCanvas } from "@/lib/export-bundle-canvas";
 
 type BundleCanvasViewProps = {
   productAUrl: string;
@@ -63,7 +64,7 @@ export default function BundleCanvasView({
   borderStyle = "solid",
 }: BundleCanvasViewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const imagesRef = useRef<[HTMLImageElement, HTMLImageElement] | null>(null);
+  const imagesRef = useRef<BundleImages | null>(null);
   const transformsRef = useRef(transforms);
   const selectedRef = useRef(selectedLayer);
   const rafRef = useRef<number | null>(null);
@@ -102,13 +103,12 @@ export default function BundleCanvasView({
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const t = transformsRef.current;
-    renderBundleCanvas(ctx, images[0], images[1], t, size);
+    renderBundleCanvas(ctx, images, t, size);
 
     if (interactive && selectedRef.current) {
       const bounds = getLayerBounds(
         selectedRef.current,
-        images[0],
-        images[1],
+        images,
         t,
         size,
       );
@@ -152,36 +152,14 @@ export default function BundleCanvasView({
     return () => observer.disconnect();
   }, [schedulePaint]);
 
-  const getCanvasPoint = (event: React.PointerEvent) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return null;
-    const rect = canvas.getBoundingClientRect();
-    const size = rect.width;
-    return {
-      x: ((event.clientX - rect.left) / rect.width) * size,
-      y: ((event.clientY - rect.top) / rect.height) * size,
-      size,
-    };
-  };
-
   const handlePointerDown = (event: React.PointerEvent) => {
     if (!interactive || !onTransformsChange) return;
     const images = imagesRef.current;
-    const point = getCanvasPoint(event);
-    if (!images || !point) return;
+    if (!images) return;
 
-    const layer =
-      hitTestLayer(
-        point.x,
-        point.y,
-        images[0],
-        images[1],
-        transformsRef.current,
-        point.size,
-      ) ?? selectedRef.current;
+    const layer = selectedRef.current;
 
     onSelectLayer?.(layer);
-    selectedRef.current = layer;
     onBeginGesture?.();
     onInteractingChange?.(true);
     setIsDragging(true);
@@ -240,12 +218,19 @@ export default function BundleCanvasView({
       ...prev,
       [layer]: {
         ...prev[layer],
-        scale: clampScale(prev[layer].scale + delta),
+        scale: clampScale(prev[layer].scale + delta, layer),
       },
     }));
     onCommit?.();
     schedulePaint();
   };
+
+  const cursorClass =
+    interactive && isDragging
+      ? "cursor-grabbing"
+      : interactive
+        ? "cursor-grab"
+        : "";
 
   return (
     <div
@@ -260,14 +245,12 @@ export default function BundleCanvasView({
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onWheel={interactive ? handleWheel : undefined}
-        className={`aspect-square w-full touch-none ${
-          interactive ? "cursor-grab active:cursor-grabbing" : ""
-        }`}
+        className={`aspect-square w-full touch-none ${cursorClass}`}
         aria-label={interactive ? "Interactive bundle editor" : "Bundle preview"}
       />
       {interactive && (
         <p className="pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-medium text-zinc-500 shadow-sm backdrop-blur">
-          Drag to move · Scroll to zoom
+          Selected layer locked · Drag anywhere · Scroll to zoom
         </p>
       )}
     </div>

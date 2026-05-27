@@ -8,6 +8,7 @@ function cloneTransforms(t: BundleTransforms): BundleTransforms {
     productA: { ...t.productA },
     plus: { ...t.plus },
     productB: { ...t.productB },
+    wmfLogo: { ...t.wmfLogo },
   };
 }
 

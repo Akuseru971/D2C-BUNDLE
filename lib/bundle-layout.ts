@@ -3,6 +3,7 @@ import { plusRadiusForCanvas } from "@/lib/plus-symbol-draw";
 
 export const PRODUCT_MAX_HEIGHT_RATIO = 0.34;
 export const PRODUCT_MAX_WIDTH_RATIO = 0.85;
+export const WMF_LOGO_MAX_WIDTH_RATIO = 0.2;
 
 export type LayerBounds = {
   x: number;
@@ -60,44 +61,86 @@ export function computePlusBounds(
   };
 }
 
+export function computeWmfLogoBounds(
+  img: HTMLImageElement,
+  transform: LayerTransform,
+  canvasSize: number,
+): LayerBounds {
+  const centerX = (transform.x / 100) * canvasSize;
+  const centerY = (transform.y / 100) * canvasSize;
+  const maxWidth = canvasSize * WMF_LOGO_MAX_WIDTH_RATIO * transform.scale;
+  const ratio = img.width / img.height;
+  const drawWidth = maxWidth;
+  const drawHeight = drawWidth / ratio;
+
+  return {
+    x: centerX - drawWidth / 2,
+    y: centerY - drawHeight / 2,
+    width: drawWidth,
+    height: drawHeight,
+    centerX,
+    centerY,
+  };
+}
+
 function pointInBounds(px: number, py: number, b: LayerBounds): boolean {
   return (
     px >= b.x && px <= b.x + b.width && py >= b.y && py <= b.y + b.height
   );
 }
 
-/** Hit-test from topmost layer to bottom. */
-export function hitTestLayer(
-  px: number,
-  py: number,
-  imgA: HTMLImageElement,
-  imgB: HTMLImageElement,
-  transforms: BundleTransforms,
-  canvasSize: number,
-): LayerId | null {
-  const boundsB = computeProductBounds(imgB, transforms.productB, canvasSize);
-  const boundsPlus = computePlusBounds(transforms.plus, canvasSize);
-  const boundsA = computeProductBounds(imgA, transforms.productA, canvasSize);
-
-  if (pointInBounds(px, py, boundsB)) return "productB";
-  if (pointInBounds(px, py, boundsPlus)) return "plus";
-  if (pointInBounds(px, py, boundsA)) return "productA";
-  return null;
-}
+export type BundleImageSet = {
+  productA: HTMLImageElement;
+  productB: HTMLImageElement;
+  wmfLogo: HTMLImageElement;
+};
 
 export function getLayerBounds(
   layer: LayerId,
-  imgA: HTMLImageElement,
-  imgB: HTMLImageElement,
+  images: BundleImageSet,
   transforms: BundleTransforms,
   canvasSize: number,
 ): LayerBounds {
   switch (layer) {
     case "productA":
-      return computeProductBounds(imgA, transforms.productA, canvasSize);
+      return computeProductBounds(images.productA, transforms.productA, canvasSize);
     case "productB":
-      return computeProductBounds(imgB, transforms.productB, canvasSize);
+      return computeProductBounds(images.productB, transforms.productB, canvasSize);
     case "plus":
       return computePlusBounds(transforms.plus, canvasSize);
+    case "wmfLogo":
+      return computeWmfLogoBounds(images.wmfLogo, transforms.wmfLogo, canvasSize);
   }
+}
+
+/** Hit-test for switching layer via canvas click (optional). */
+export function hitTestLayer(
+  px: number,
+  py: number,
+  images: BundleImageSet,
+  transforms: BundleTransforms,
+  canvasSize: number,
+): LayerId | null {
+  const boundsLogo = computeWmfLogoBounds(
+    images.wmfLogo,
+    transforms.wmfLogo,
+    canvasSize,
+  );
+  const boundsB = computeProductBounds(
+    images.productB,
+    transforms.productB,
+    canvasSize,
+  );
+  const boundsPlus = computePlusBounds(transforms.plus, canvasSize);
+  const boundsA = computeProductBounds(
+    images.productA,
+    transforms.productA,
+    canvasSize,
+  );
+
+  if (pointInBounds(px, py, boundsLogo)) return "wmfLogo";
+  if (pointInBounds(px, py, boundsB)) return "productB";
+  if (pointInBounds(px, py, boundsPlus)) return "plus";
+  if (pointInBounds(px, py, boundsA)) return "productA";
+  return null;
 }

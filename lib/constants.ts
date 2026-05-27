@@ -19,6 +19,7 @@ Composition:
 - Product A at the top.
 - Product B at the bottom.
 - A luxury, premium centered plus symbol between them — this is a key visual element.
+- CRITICAL spacing: Product A, the plus symbol, and Product B must NEVER overlap each other. Keep clear vertical separation between all three — each element must have its own space with visible background between them.
 - Plus symbol design (must look high-end and marketplace-polished):
   - Perfectly circular matte black badge with a subtle radial depth (soft highlight, not flat).
   - Crisp, balanced white plus sign centered inside the circle — clean geometric lines, equal arm length, rounded line caps.
@@ -30,10 +31,11 @@ Composition:
 - Products must appear directly on this background with NO white squares, NO white boxes, NO white rectangular padding, and NO visible image boundaries around each product.
 - Remove any white or off-white backdrop from the source product cutouts — only the product itself should be visible, floating cleanly on the uniform grey.
 - Subtle realistic shadows under the products only (not box-shaped shadows).
-- No text.
+- A small WMF brand logo placed in the top-right corner (subtle, premium, not dominant).
+- No other text.
 - No slogans.
-- No badges.
-- No decorative elements.
+- No badges (except the small WMF logo in the corner).
+- No other decorative elements.
 - No packaging.
 
 Product fidelity requirements:

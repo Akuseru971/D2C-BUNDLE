@@ -1,10 +1,11 @@
 import type { BundleTransforms } from "@/lib/bundle-editor";
 import { EXPORT_SIZE } from "@/lib/bundle-editor";
+import type { BundleImageSet } from "@/lib/bundle-layout";
 import {
   computeProductBounds,
-  PRODUCT_MAX_HEIGHT_RATIO,
+  computeWmfLogoBounds,
 } from "@/lib/bundle-layout";
-import { getCachedProductImage } from "@/lib/bundle-image-cache";
+import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import {
   drawPremiumPlus,
   plusRadiusForCanvas,
@@ -27,37 +28,45 @@ function drawProductLayer(
   ctx.restore();
 }
 
+function drawWmfLogo(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  transform: BundleTransforms["wmfLogo"],
+  canvasSize: number,
+) {
+  const bounds = computeWmfLogoBounds(img, transform, canvasSize);
+  ctx.drawImage(img, bounds.x, bounds.y, bounds.width, bounds.height);
+}
+
 export function renderBundleCanvas(
   ctx: CanvasRenderingContext2D,
-  imgA: HTMLImageElement,
-  imgB: HTMLImageElement,
+  images: BundleImageSet,
   transforms: BundleTransforms,
   canvasSize: number = EXPORT_SIZE,
 ) {
   ctx.fillStyle = BUNDLE_BACKGROUND;
   ctx.fillRect(0, 0, canvasSize, canvasSize);
 
-  drawProductLayer(ctx, imgA, transforms.productA, canvasSize);
+  drawProductLayer(ctx, images.productA, transforms.productA, canvasSize);
 
   const plusX = (transforms.plus.x / 100) * canvasSize;
   const plusY = (transforms.plus.y / 100) * canvasSize;
   const plusR = plusRadiusForCanvas(canvasSize, transforms.plus.scale);
   drawPremiumPlus(ctx, plusX, plusY, plusR);
 
-  drawProductLayer(ctx, imgB, transforms.productB, canvasSize);
+  drawProductLayer(ctx, images.productB, transforms.productB, canvasSize);
+
+  drawWmfLogo(ctx, images.wmfLogo, transforms.wmfLogo, canvasSize);
 }
 
-export { PRODUCT_MAX_HEIGHT_RATIO };
+export { PRODUCT_MAX_HEIGHT_RATIO } from "@/lib/bundle-layout";
 
 export async function renderBundleToDataUrl(
   productAUrl: string,
   productBUrl: string,
   transforms: BundleTransforms,
 ): Promise<string> {
-  const [imgA, imgB] = await Promise.all([
-    getCachedProductImage(productAUrl),
-    getCachedProductImage(productBUrl),
-  ]);
+  const images = await preloadBundleImages(productAUrl, productBUrl);
 
   const canvas = document.createElement("canvas");
   canvas.width = EXPORT_SIZE;
@@ -67,6 +76,6 @@ export async function renderBundleToDataUrl(
     throw new Error("Canvas is not supported in this browser.");
   }
 
-  renderBundleCanvas(ctx, imgA, imgB, transforms);
+  renderBundleCanvas(ctx, images, transforms);
   return canvas.toDataURL("image/png");
 }

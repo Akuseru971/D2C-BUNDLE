@@ -1,4 +1,8 @@
-import { processProductImage } from "@/lib/remove-white-background";
+import {
+  processLogoImage,
+  processProductImage,
+} from "@/lib/remove-white-background";
+import { WMF_LOGO_SRC } from "@/lib/bundle-editor";
 
 const rawCache = new Map<string, HTMLImageElement>();
 const productCache = new Map<string, HTMLImageElement>();
@@ -61,12 +65,48 @@ export function getCachedImage(src: string): Promise<HTMLImageElement> {
   return loadRawImage(src);
 }
 
+const wmfLogoCache = new Map<string, HTMLImageElement>();
+let wmfLogoPromise: Promise<HTMLImageElement> | null = null;
+
+export function getCachedWmfLogo(): Promise<HTMLImageElement> {
+  const key = WMF_LOGO_SRC;
+  const cached = wmfLogoCache.get(key);
+  if (cached?.complete) return Promise.resolve(cached);
+
+  if (wmfLogoPromise) return wmfLogoPromise;
+
+  wmfLogoPromise = loadRawImage(key)
+    .then(processLogoImage)
+    .then((processed) => {
+      wmfLogoCache.set(key, processed);
+      wmfLogoPromise = null;
+      return processed;
+    })
+    .catch((err) => {
+      wmfLogoPromise = null;
+      throw err;
+    });
+
+  return wmfLogoPromise;
+}
+
+export type BundleImages = {
+  productA: HTMLImageElement;
+  productB: HTMLImageElement;
+  wmfLogo: HTMLImageElement;
+};
+
 export function preloadBundleImages(
   productAUrl: string,
   productBUrl: string,
-): Promise<[HTMLImageElement, HTMLImageElement]> {
+): Promise<BundleImages> {
   return Promise.all([
     getCachedProductImage(productAUrl),
     getCachedProductImage(productBUrl),
-  ]);
+    getCachedWmfLogo(),
+  ]).then(([productA, productB, wmfLogo]) => ({
+    productA,
+    productB,
+    wmfLogo,
+  }));
 }

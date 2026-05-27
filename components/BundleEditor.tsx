@@ -3,14 +3,18 @@
 import { useState } from "react";
 import BundleCanvasView from "@/components/BundleCanvasView";
 import {
+  CANVAS_CENTER,
   LAYER_LABELS,
   MAX_SCALE,
   MIN_SCALE,
+  MIN_SCALE_LOGO,
   SCALE_STEP,
   type BundleTransforms,
   type LayerId,
   clampScale,
 } from "@/lib/bundle-editor";
+
+const LAYER_ORDER: LayerId[] = ["productA", "plus", "productB", "wmfLogo"];
 
 type BundleEditorProps = {
   productAUrl: string;
@@ -45,12 +49,14 @@ export default function BundleEditor({
 }: BundleEditorProps) {
   const [selectedLayer, setSelectedLayer] = useState<LayerId>("productA");
 
+  const minScale = selectedLayer === "wmfLogo" ? MIN_SCALE_LOGO : MIN_SCALE;
+
   const updateLayerScale = (value: number) => {
     onTransformsChange((prev) => ({
       ...prev,
       [selectedLayer]: {
         ...prev[selectedLayer],
-        scale: clampScale(value),
+        scale: clampScale(value, selectedLayer),
       },
     }));
   };
@@ -62,7 +68,20 @@ export default function BundleEditor({
       ...prev,
       [selectedLayer]: {
         ...prev[selectedLayer],
-        scale: clampScale(prev[selectedLayer].scale + delta),
+        scale: clampScale(prev[selectedLayer].scale + delta, selectedLayer),
+      },
+    }));
+    onCommit();
+  };
+
+  const centerSelected = () => {
+    onBeginGesture();
+    onTransformsChange((prev) => ({
+      ...prev,
+      [selectedLayer]: {
+        ...prev[selectedLayer],
+        x: CANVAS_CENTER.x,
+        y: CANVAS_CENTER.y,
       },
     }));
     onCommit();
@@ -93,6 +112,13 @@ export default function BundleEditor({
         </button>
         <button
           type="button"
+          onClick={centerSelected}
+          className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+        >
+          Center
+        </button>
+        <button
+          type="button"
           onClick={onReset}
           className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
         >
@@ -101,7 +127,7 @@ export default function BundleEditor({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        {(["productA", "plus", "productB"] as LayerId[]).map((layer) => (
+        {LAYER_ORDER.map((layer) => (
           <button
             key={layer}
             type="button"
@@ -130,7 +156,7 @@ export default function BundleEditor({
           <button
             type="button"
             onClick={() => zoomSelected("out")}
-            disabled={selected.scale <= MIN_SCALE}
+            disabled={selected.scale <= minScale}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-sm font-medium disabled:opacity-40"
             aria-label="Zoom out"
           >
@@ -138,7 +164,7 @@ export default function BundleEditor({
           </button>
           <input
             type="range"
-            min={MIN_SCALE}
+            min={minScale}
             max={MAX_SCALE}
             step={SCALE_STEP}
             value={selected.scale}
