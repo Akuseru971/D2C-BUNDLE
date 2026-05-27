@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import PlusSymbol from "@/components/PlusSymbol";
 import {
   clampPosition,
   clampScale,
-  DEFAULT_TRANSFORMS,
   LAYER_LABELS,
   MAX_SCALE,
   MIN_SCALE,
@@ -20,13 +20,25 @@ type BundleEditorProps = {
   onTransformsChange: (
     transforms: BundleTransforms | ((prev: BundleTransforms) => BundleTransforms),
   ) => void;
+  onBeginGesture: () => void;
+  onCommit: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
+  onReset: () => void;
+  onInteractingChange?: (interacting: boolean) => void;
 };
 
-function layerStyle(transform: BundleTransforms[LayerId]) {
+function layerStyle(
+  transform: BundleTransforms[LayerId],
+  isDragging: boolean,
+) {
   return {
     left: `${transform.x}%`,
     top: `${transform.y}%`,
     transform: `translate(-50%, -50%) scale(${transform.scale})`,
+    transition: isDragging ? "none" : "transform 0.2s cubic-bezier(0.22, 1, 0.36, 1)",
   };
 }
 
@@ -35,8 +47,17 @@ export default function BundleEditor({
   productBUrl,
   transforms,
   onTransformsChange,
+  onBeginGesture,
+  onCommit,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  onReset,
+  onInteractingChange,
 }: BundleEditorProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
+  const rafRef = useRef<number | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<LayerId>("productA");
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef<{
@@ -46,9 +67,20 @@ export default function BundleEditor({
     origin: BundleTransforms[LayerId];
   } | null>(null);
 
+  const scheduleTransformUpdate = useCallback(
+    (update: (prev: BundleTransforms) => BundleTransforms) => {
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => {
+        rafRef.current = null;
+        onTransformsChange(update);
+      });
+    },
+    [onTransformsChange],
+  );
+
   const updateLayer = useCallback(
     (layer: LayerId, patch: Partial<BundleTransforms[LayerId]>) => {
-      onTransformsChange((prev) => ({
+      scheduleTransformUpdate((prev) => ({
         ...prev,
         [layer]: {
           ...prev[layer],
@@ -61,7 +93,7 @@ export default function BundleEditor({
         },
       }));
     },
-    [onTransformsChange],
+    [scheduleTransformUpdate],
   );
 
   const handlePointerDown = (
@@ -72,6 +104,8 @@ export default function BundleEditor({
     event.stopPropagation();
     setSelectedLayer(layer);
     setIsDragging(true);
+    onInteractingChange?.(true);
+    onBeginGesture();
     dragRef.current = {
       layer,
       startX: event.clientX,
@@ -90,7 +124,7 @@ export default function BundleEditor({
     const deltaX = ((event.clientX - drag.startX) / rect.width) * 100;
     const deltaY = ((event.clientY - drag.startY) / rect.height) * 100;
 
-    onTransformsChange((prev) => ({
+    scheduleTransformUpdate((prev) => ({
       ...prev,
       [drag.layer]: {
         ...drag.origin,
@@ -100,12 +134,15 @@ export default function BundleEditor({
     }));
   };
 
-  const handlePointerUp = (event: React.PointerEvent) => {
+  const endInteraction = (event: React.PointerEvent) => {
     if (canvasRef.current?.hasPointerCapture(event.pointerId)) {
       canvasRef.current.releasePointerCapture(event.pointerId);
     }
+    const wasDragging = isDragging;
     setIsDragging(false);
+    onInteractingChange?.(false);
     dragRef.current = null;
+    if (wasDragging) onCommit();
   };
 
   const handleWheel = (event: React.WheelEvent) => {
@@ -116,34 +153,56 @@ export default function BundleEditor({
     });
   };
 
+  const handleScaleSlider = (value: number) => {
+    updateLayer(selectedLayer, { scale: value });
+  };
+
+  const handleScaleCommit = () => {
+    onCommit();
+  };
+
   const zoomSelected = (direction: "in" | "out") => {
+    onBeginGesture();
     const delta = direction === "in" ? SCALE_STEP : -SCALE_STEP;
     updateLayer(selectedLayer, {
       scale: transforms[selectedLayer].scale + delta,
     });
-  };
-
-  const resetLayout = () => {
-    onTransformsChange(DEFAULT_TRANSFORMS);
-    setSelectedLayer("productA");
+    onCommit();
   };
 
   const selected = transforms[selectedLayer];
 
   return (
-    <div className="mt-6 space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h3 className="text-sm font-semibold text-zinc-900">Adjust layout</h3>
-          <p className="mt-0.5 text-xs text-zinc-500">
-            Drag each element to reposition. Select a layer, then zoom with the
-            buttons or mouse wheel.
-          </p>
-        </div>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
         <button
           type="button"
-          onClick={resetLayout}
-          className="self-start rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
+          onClick={onUndo}
+          disabled={!canUndo}
+          title="Undo (Ctrl+Z)"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 4 10l5-5M4 10h11a5 5 0 015 5v1" />
+          </svg>
+          Undo
+        </button>
+        <button
+          type="button"
+          onClick={onRedo}
+          disabled={!canRedo}
+          title="Redo (Ctrl+Shift+Z)"
+          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 15l5-5-5-5M20 10H9a5 5 0 00-5 5v1" />
+          </svg>
+          Redo
+        </button>
+        <button
+          type="button"
+          onClick={onReset}
+          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 transition hover:bg-zinc-50"
         >
           Reset layout
         </button>
@@ -155,10 +214,10 @@ export default function BundleEditor({
             key={layer}
             type="button"
             onClick={() => setSelectedLayer(layer)}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+            className={`rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 ${
               selectedLayer === layer
-                ? "bg-zinc-900 text-white"
-                : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                ? "bg-zinc-900 text-white shadow-md"
+                : "border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
             }`}
           >
             {LAYER_LABELS[layer]}
@@ -166,50 +225,72 @@ export default function BundleEditor({
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-100 bg-zinc-50 p-3">
-        <span className="text-xs font-medium text-zinc-600">
-          Zoom — {LAYER_LABELS[selectedLayer]}:
-        </span>
-        <button
-          type="button"
-          onClick={() => zoomSelected("out")}
-          disabled={selected.scale <= MIN_SCALE}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 bg-white text-sm font-medium text-zinc-800 disabled:opacity-40"
-          aria-label="Zoom out"
-        >
-          −
-        </button>
-        <span className="min-w-12 text-center text-xs tabular-nums text-zinc-600">
-          {Math.round(selected.scale * 100)}%
-        </span>
-        <button
-          type="button"
-          onClick={() => zoomSelected("in")}
-          disabled={selected.scale >= MAX_SCALE}
-          className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 bg-white text-sm font-medium text-zinc-800 disabled:opacity-40"
-          aria-label="Zoom in"
-        >
-          +
-        </button>
+      <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 backdrop-blur-sm">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-medium text-zinc-600">
+            Scale — {LAYER_LABELS[selectedLayer]}
+          </span>
+          <span className="text-xs tabular-nums text-zinc-500">
+            {Math.round(selected.scale * 100)}%
+          </span>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => zoomSelected("out")}
+            disabled={selected.scale <= MIN_SCALE}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-sm font-medium transition hover:bg-white disabled:opacity-40"
+            aria-label="Zoom out"
+          >
+            −
+          </button>
+          <input
+            type="range"
+            min={MIN_SCALE}
+            max={MAX_SCALE}
+            step={SCALE_STEP}
+            value={selected.scale}
+            onPointerDown={onBeginGesture}
+            onChange={(e) => handleScaleSlider(parseFloat(e.target.value))}
+            onPointerUp={handleScaleCommit}
+            onTouchEnd={handleScaleCommit}
+            className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-200 accent-zinc-900"
+          />
+          <button
+            type="button"
+            onClick={() => zoomSelected("in")}
+            disabled={selected.scale >= MAX_SCALE}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-sm font-medium transition hover:bg-white disabled:opacity-40"
+            aria-label="Zoom in"
+          >
+            +
+          </button>
+        </div>
       </div>
 
       <div
         ref={canvasRef}
         onWheel={handleWheel}
         onPointerMove={isDragging ? handlePointerMove : undefined}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        className={`relative mx-auto aspect-square w-full max-w-md overflow-hidden rounded-xl border border-zinc-200 bg-[#f5f5f5] touch-none ${
-          isDragging ? "cursor-grabbing" : "cursor-default"
+        onPointerUp={endInteraction}
+        onPointerCancel={endInteraction}
+        className={`relative mx-auto aspect-square w-full overflow-hidden rounded-2xl border-2 bg-[#f5f5f5] touch-none ${
+          isDragging
+            ? "cursor-grabbing border-zinc-400"
+            : "border-zinc-200 border-dashed"
         }`}
       >
+        <p className="pointer-events-none absolute left-3 top-3 z-30 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-medium text-zinc-500 shadow-sm backdrop-blur">
+          Drag to move · Scroll to zoom
+        </p>
+
         <div
           onPointerDown={(e) => handlePointerDown(e, "productA")}
-          style={layerStyle(transforms.productA)}
-          className={`absolute z-10 max-h-[34%] max-w-[85%] cursor-grab select-none ${
+          style={layerStyle(transforms.productA, isDragging)}
+          className={`absolute z-10 max-h-[38%] max-w-[88%] cursor-grab select-none will-change-transform ${
             selectedLayer === "productA"
-              ? "ring-2 ring-zinc-900 ring-offset-2 ring-offset-[#f5f5f5]"
-              : ""
+              ? "z-20 ring-2 ring-zinc-900 ring-offset-2 ring-offset-[#f5f5f5]"
+              : "hover:ring-1 hover:ring-zinc-300"
           }`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -217,42 +298,29 @@ export default function BundleEditor({
             src={productAUrl}
             alt="Product A"
             draggable={false}
-            className="max-h-[260px] w-auto max-w-full object-contain drop-shadow-md pointer-events-none"
+            className="pointer-events-none max-h-[280px] w-auto max-w-full object-contain drop-shadow-lg"
           />
         </div>
 
         <div
           onPointerDown={(e) => handlePointerDown(e, "plus")}
-          style={layerStyle(transforms.plus)}
-          className={`absolute z-20 flex cursor-grab select-none items-center justify-center ${
+          style={layerStyle(transforms.plus, isDragging)}
+          className={`absolute z-20 flex cursor-grab select-none items-center justify-center will-change-transform ${
             selectedLayer === "plus"
-              ? "rounded-full ring-2 ring-zinc-900 ring-offset-2 ring-offset-[#f5f5f5]"
-              : ""
+              ? "ring-2 ring-zinc-900 ring-offset-2 ring-offset-[#f5f5f5] rounded-full"
+              : "hover:ring-1 hover:ring-zinc-300 rounded-full"
           }`}
         >
-          <div
-            className="flex items-center justify-center rounded-full bg-zinc-900 shadow-md pointer-events-none"
-            style={{
-              width: `${72 * transforms.plus.scale}px`,
-              height: `${72 * transforms.plus.scale}px`,
-            }}
-          >
-            <span
-              className="font-light text-white"
-              style={{ fontSize: `${32 * transforms.plus.scale}px`, lineHeight: 1 }}
-            >
-              +
-            </span>
-          </div>
+          <PlusSymbol scale={transforms.plus.scale} className="pointer-events-none" />
         </div>
 
         <div
           onPointerDown={(e) => handlePointerDown(e, "productB")}
-          style={layerStyle(transforms.productB)}
-          className={`absolute z-10 max-h-[34%] max-w-[85%] cursor-grab select-none ${
+          style={layerStyle(transforms.productB, isDragging)}
+          className={`absolute z-10 max-h-[38%] max-w-[88%] cursor-grab select-none will-change-transform ${
             selectedLayer === "productB"
-              ? "ring-2 ring-zinc-900 ring-offset-2 ring-offset-[#f5f5f5]"
-              : ""
+              ? "z-20 ring-2 ring-zinc-900 ring-offset-2 ring-offset-[#f5f5f5]"
+              : "hover:ring-1 hover:ring-zinc-300"
           }`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -260,7 +328,7 @@ export default function BundleEditor({
             src={productBUrl}
             alt="Product B"
             draggable={false}
-            className="max-h-[260px] w-auto max-w-full object-contain drop-shadow-md pointer-events-none"
+            className="pointer-events-none max-h-[280px] w-auto max-w-full object-contain drop-shadow-lg"
           />
         </div>
       </div>

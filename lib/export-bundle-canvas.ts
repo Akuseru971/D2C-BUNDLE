@@ -1,35 +1,28 @@
+import type { BundleTransforms } from "@/lib/bundle-editor";
+import { EXPORT_SIZE } from "@/lib/bundle-editor";
+import { getCachedImage } from "@/lib/bundle-image-cache";
 import {
-  type BundleTransforms,
-  EXPORT_SIZE,
-  type LayerId,
-} from "@/lib/bundle-editor";
+  drawPremiumPlus,
+  plusRadiusForCanvas,
+} from "@/lib/plus-symbol-draw";
 
 const BACKGROUND = "#f5f5f5";
-
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error("Failed to load image for export."));
-    img.src = src;
-  });
-}
 
 function drawProductLayer(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
-  transform: BundleTransforms[LayerId],
+  transform: BundleTransforms["productA"],
   maxHeightRatio: number,
+  canvasSize: number,
 ) {
-  const centerX = (transform.x / 100) * EXPORT_SIZE;
-  const centerY = (transform.y / 100) * EXPORT_SIZE;
-  const maxHeight = EXPORT_SIZE * maxHeightRatio * transform.scale;
+  const centerX = (transform.x / 100) * canvasSize;
+  const centerY = (transform.y / 100) * canvasSize;
+  const maxHeight = canvasSize * maxHeightRatio * transform.scale;
   const ratio = img.width / img.height;
   let drawHeight = maxHeight;
   let drawWidth = drawHeight * ratio;
 
-  const maxWidth = EXPORT_SIZE * 0.85 * transform.scale;
+  const maxWidth = canvasSize * 0.85 * transform.scale;
   if (drawWidth > maxWidth) {
     drawWidth = maxWidth;
     drawHeight = drawWidth / ratio;
@@ -37,8 +30,8 @@ function drawProductLayer(
 
   ctx.save();
   ctx.shadowColor = "rgba(0, 0, 0, 0.12)";
-  ctx.shadowBlur = 24;
-  ctx.shadowOffsetY = 8;
+  ctx.shadowBlur = canvasSize * 0.024;
+  ctx.shadowOffsetY = canvasSize * 0.008;
   ctx.drawImage(
     img,
     centerX - drawWidth / 2,
@@ -49,37 +42,24 @@ function drawProductLayer(
   ctx.restore();
 }
 
-function drawPlusSymbol(
+export function renderBundleCanvas(
   ctx: CanvasRenderingContext2D,
-  transform: BundleTransforms["plus"],
+  imgA: HTMLImageElement,
+  imgB: HTMLImageElement,
+  transforms: BundleTransforms,
+  canvasSize: number = EXPORT_SIZE,
 ) {
-  const centerX = (transform.x / 100) * EXPORT_SIZE;
-  const centerY = (transform.y / 100) * EXPORT_SIZE;
-  const radius = EXPORT_SIZE * 0.045 * transform.scale;
+  ctx.fillStyle = BACKGROUND;
+  ctx.fillRect(0, 0, canvasSize, canvasSize);
 
-  ctx.save();
-  ctx.shadowColor = "rgba(0, 0, 0, 0.1)";
-  ctx.shadowBlur = 12;
-  ctx.shadowOffsetY = 4;
+  drawProductLayer(ctx, imgA, transforms.productA, 0.34, canvasSize);
 
-  ctx.beginPath();
-  ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-  ctx.fillStyle = "#0a0a0a";
-  ctx.fill();
+  const plusX = (transforms.plus.x / 100) * canvasSize;
+  const plusY = (transforms.plus.y / 100) * canvasSize;
+  const plusR = plusRadiusForCanvas(canvasSize, transforms.plus.scale);
+  drawPremiumPlus(ctx, plusX, plusY, plusR);
 
-  ctx.shadowColor = "transparent";
-  ctx.strokeStyle = "#ffffff";
-  ctx.lineWidth = Math.max(2, radius * 0.14);
-  ctx.lineCap = "round";
-
-  const arm = radius * 0.42;
-  ctx.beginPath();
-  ctx.moveTo(centerX - arm, centerY);
-  ctx.lineTo(centerX + arm, centerY);
-  ctx.moveTo(centerX, centerY - arm);
-  ctx.lineTo(centerX, centerY + arm);
-  ctx.stroke();
-  ctx.restore();
+  drawProductLayer(ctx, imgB, transforms.productB, 0.34, canvasSize);
 }
 
 export async function renderBundleToDataUrl(
@@ -88,8 +68,8 @@ export async function renderBundleToDataUrl(
   transforms: BundleTransforms,
 ): Promise<string> {
   const [imgA, imgB] = await Promise.all([
-    loadImage(productAUrl),
-    loadImage(productBUrl),
+    getCachedImage(productAUrl),
+    getCachedImage(productBUrl),
   ]);
 
   const canvas = document.createElement("canvas");
@@ -100,12 +80,6 @@ export async function renderBundleToDataUrl(
     throw new Error("Canvas is not supported in this browser.");
   }
 
-  ctx.fillStyle = BACKGROUND;
-  ctx.fillRect(0, 0, EXPORT_SIZE, EXPORT_SIZE);
-
-  drawProductLayer(ctx, imgA, transforms.productA, 0.34);
-  drawPlusSymbol(ctx, transforms.plus);
-  drawProductLayer(ctx, imgB, transforms.productB, 0.34);
-
+  renderBundleCanvas(ctx, imgA, imgB, transforms);
   return canvas.toDataURL("image/png");
 }

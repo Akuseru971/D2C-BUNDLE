@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import BundleEditor from "@/components/BundleEditor";
-import {
-  DEFAULT_TRANSFORMS,
-  type BundleTransforms,
-} from "@/lib/bundle-editor";
+import LiveBundlePreview from "@/components/LiveBundlePreview";
+import { useTransformHistory } from "@/hooks/useTransformHistory";
+import { DEFAULT_TRANSFORMS } from "@/lib/bundle-editor";
 import { renderBundleToDataUrl } from "@/lib/export-bundle-canvas";
+import { preloadBundleImages } from "@/lib/bundle-image-cache";
 
 type GeneratedResultProps = {
   aiImageUrl: string;
@@ -21,34 +21,30 @@ export default function GeneratedResult({
   productBUrl,
   onGenerateAgain,
 }: GeneratedResultProps) {
-  const [activePreview, setActivePreview] = useState<"ai" | "edited">("edited");
-  const [transforms, setTransforms] = useState<BundleTransforms>(DEFAULT_TRANSFORMS);
-  const [editedPreviewUrl, setEditedPreviewUrl] = useState<string | null>(null);
+  const [activePreview, setActivePreview] = useState<"edited" | "ai">("edited");
+  const [isInteracting, setIsInteracting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    const timer = window.setTimeout(async () => {
-      try {
-        const dataUrl = await renderBundleToDataUrl(
-          productAUrl,
-          productBUrl,
-          transforms,
-        );
-        if (!cancelled) setEditedPreviewUrl(dataUrl);
-      } catch {
-        /* preview update is best-effort */
-      }
-    }, 200);
-    return () => {
-      cancelled = true;
-      window.clearTimeout(timer);
-    };
-  }, [transforms, productAUrl, productBUrl]);
+  const {
+    transforms,
+    setTransforms,
+    beginGesture,
+    commitTransforms,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    resetHistory,
+  } = useTransformHistory(DEFAULT_TRANSFORMS);
+
+  const handleReset = () => {
+    resetHistory(DEFAULT_TRANSFORMS);
+  };
 
   const handleDownload = async () => {
     setIsExporting(true);
     try {
+      await preloadBundleImages(productAUrl, productBUrl);
       const href =
         activePreview === "ai"
           ? aiImageUrl
@@ -69,56 +65,90 @@ export default function GeneratedResult({
     }
   };
 
-  const displayImage =
-    activePreview === "ai" ? aiImageUrl : editedPreviewUrl ?? aiImageUrl;
-
   return (
     <section className="mt-8 rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
-      <h2 className="text-lg font-semibold text-zinc-900">Generated bundle</h2>
-      <p className="mt-1 text-sm text-zinc-500">
-        Drag and zoom each element, then download your final composition.
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h2 className="text-lg font-semibold text-zinc-900">Generated bundle</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Live preview updates as you edit. Use Undo to go back.
+          </p>
+        </div>
+        <div className="mt-2 flex gap-2 sm:mt-0">
+          <button
+            type="button"
+            onClick={() => setActivePreview("edited")}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+              activePreview === "edited"
+                ? "bg-zinc-900 text-white"
+                : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+            }`}
+          >
+            Your layout
+          </button>
+          <button
+            type="button"
+            onClick={() => setActivePreview("ai")}
+            className={`rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+              activePreview === "ai"
+                ? "bg-zinc-900 text-white"
+                : "border border-zinc-200 text-zinc-600 hover:bg-zinc-50"
+            }`}
+          >
+            AI preview
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-2 lg:gap-8">
+        <div className="order-1 lg:order-2">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Live preview
+          </p>
+          {activePreview === "edited" ? (
+            <LiveBundlePreview
+              productAUrl={productAUrl}
+              productBUrl={productBUrl}
+              transforms={transforms}
+              isInteracting={isInteracting}
+              className="shadow-md"
+            />
+          ) : (
+            <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-zinc-50 shadow-md">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={aiImageUrl}
+                alt="AI generated bundle"
+                className="aspect-square w-full object-contain"
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="order-2 lg:order-1">
+          <p className="mb-2 text-xs font-medium uppercase tracking-wider text-zinc-400">
+            Adjust elements
+          </p>
+          <BundleEditor
+            productAUrl={productAUrl}
+            productBUrl={productBUrl}
+            transforms={transforms}
+            onTransformsChange={setTransforms}
+            onBeginGesture={beginGesture}
+            onCommit={commitTransforms}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={undo}
+            onRedo={redo}
+            onReset={handleReset}
+            onInteractingChange={setIsInteracting}
+          />
+        </div>
+      </div>
+
+      <p className="mt-4 text-center text-[11px] text-zinc-400">
+        Keyboard: Ctrl+Z undo · Ctrl+Shift+Z redo
       </p>
-
-      <div className="mt-4 flex gap-2">
-        <button
-          type="button"
-          onClick={() => setActivePreview("edited")}
-          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-            activePreview === "edited"
-              ? "bg-zinc-900 text-white"
-              : "border border-zinc-200 text-zinc-700 hover:bg-zinc-50"
-          }`}
-        >
-          Your layout
-        </button>
-        <button
-          type="button"
-          onClick={() => setActivePreview("ai")}
-          className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-            activePreview === "ai"
-              ? "bg-zinc-900 text-white"
-              : "border border-zinc-200 text-zinc-700 hover:bg-zinc-50"
-          }`}
-        >
-          AI preview
-        </button>
-      </div>
-
-      <div className="mt-4 overflow-hidden rounded-xl border border-zinc-100 bg-zinc-50 p-4">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={displayImage}
-          alt="Bundle preview"
-          className="mx-auto aspect-square w-full max-w-md object-contain"
-        />
-      </div>
-
-      <BundleEditor
-        productAUrl={productAUrl}
-        productBUrl={productBUrl}
-        transforms={transforms}
-        onTransformsChange={setTransforms}
-      />
 
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <button

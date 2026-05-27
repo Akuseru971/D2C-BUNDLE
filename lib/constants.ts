@@ -18,8 +18,14 @@ The first provided image is Product A. The second provided image is Product B.
 Composition:
 - Product A at the top.
 - Product B at the bottom.
-- A premium centered plus symbol between them.
-- The plus symbol must be white inside a clean black circular background.
+- A luxury, premium centered plus symbol between them — this is a key visual element.
+- Plus symbol design (must look high-end and marketplace-polished):
+  - Perfectly circular matte black badge with a subtle radial depth (soft highlight, not flat).
+  - Crisp, balanced white plus sign centered inside the circle — clean geometric lines, equal arm length, rounded line caps.
+  - Proportions: the circle should be compact but clearly visible; the plus arms should not touch the circle edge (comfortable padding).
+  - Very subtle soft drop shadow under the badge only — refined, not heavy.
+  - No glow, no gradient on the plus itself, no 3D extrusion, no emoji style.
+  - Must read instantly as a premium “bundle” indicator on Amazon-style marketplaces.
 - Neutral white or very light grey background.
 - Subtle realistic shadows.
 - No text.
