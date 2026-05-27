@@ -1,12 +1,11 @@
 import type { BundleTransforms } from "@/lib/bundle-editor";
 import { EXPORT_SIZE } from "@/lib/bundle-editor";
-import { getCachedImage } from "@/lib/bundle-image-cache";
+import { getCachedProductImage } from "@/lib/bundle-image-cache";
 import {
   drawPremiumPlus,
   plusRadiusForCanvas,
 } from "@/lib/plus-symbol-draw";
-
-const BACKGROUND = "#f5f5f5";
+import { BUNDLE_BACKGROUND } from "@/lib/remove-white-background";
 
 function drawProductLayer(
   ctx: CanvasRenderingContext2D,
@@ -49,7 +48,7 @@ export function renderBundleCanvas(
   transforms: BundleTransforms,
   canvasSize: number = EXPORT_SIZE,
 ) {
-  ctx.fillStyle = BACKGROUND;
+  ctx.fillStyle = BUNDLE_BACKGROUND;
   ctx.fillRect(0, 0, canvasSize, canvasSize);
 
   drawProductLayer(ctx, imgA, transforms.productA, 0.34, canvasSize);
@@ -68,8 +67,8 @@ export async function renderBundleToDataUrl(
   transforms: BundleTransforms,
 ): Promise<string> {
   const [imgA, imgB] = await Promise.all([
-    getCachedImage(productAUrl),
-    getCachedImage(productBUrl),
+    getCachedProductImage(productAUrl),
+    getCachedProductImage(productBUrl),
   ]);
 
   const canvas = document.createElement("canvas");

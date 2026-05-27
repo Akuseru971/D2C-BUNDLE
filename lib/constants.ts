@@ -26,8 +26,10 @@ Composition:
   - Very subtle soft drop shadow under the badge only — refined, not heavy.
   - No glow, no gradient on the plus itself, no 3D extrusion, no emoji style.
   - Must read instantly as a premium “bundle” indicator on Amazon-style marketplaces.
-- Neutral white or very light grey background.
-- Subtle realistic shadows.
+- Single uniform very light grey background (#f5f5f5) across the entire image — perfectly flat, no variation.
+- Products must appear directly on this background with NO white squares, NO white boxes, NO white rectangular padding, and NO visible image boundaries around each product.
+- Remove any white or off-white backdrop from the source product cutouts — only the product itself should be visible, floating cleanly on the uniform grey.
+- Subtle realistic shadows under the products only (not box-shaped shadows).
 - No text.
 - No slogans.
 - No badges.
@@ -51,5 +53,6 @@ Product fidelity requirements:
 - Do not make visible inscriptions intentionally unreadable.
 - Do not beautify the products in a way that changes their real design.
 - Both products must be fully visible, sharp, clean, and not cropped.
+- Never render products inside white rectangles or marketplace “card” frames.
 
 The final image must look like a sober, premium, marketplace-ready bundle image, faithful to the original products and not misleading to consumers.`;

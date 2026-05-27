@@ -2,6 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 import PlusSymbol from "@/components/PlusSymbol";
+import { useProcessedProductUrl } from "@/hooks/useProcessedProductUrl";
 import {
   clampPosition,
   clampScale,
@@ -56,6 +57,8 @@ export default function BundleEditor({
   onReset,
   onInteractingChange,
 }: BundleEditorProps) {
+  const displayProductA = useProcessedProductUrl(productAUrl);
+  const displayProductB = useProcessedProductUrl(productBUrl);
   const canvasRef = useRef<HTMLDivElement>(null);
   const rafRef = useRef<number | null>(null);
   const [selectedLayer, setSelectedLayer] = useState<LayerId>("productA");
@@ -293,13 +296,15 @@ export default function BundleEditor({
               : "hover:ring-1 hover:ring-zinc-300"
           }`}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={productAUrl}
-            alt="Product A"
-            draggable={false}
-            className="pointer-events-none max-h-[280px] w-auto max-w-full object-contain drop-shadow-lg"
-          />
+          {displayProductA && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={displayProductA}
+              alt="Product A"
+              draggable={false}
+              className="pointer-events-none max-h-[280px] w-auto max-w-full object-contain drop-shadow-lg"
+            />
+          )}
         </div>
 
         <div
@@ -323,13 +328,15 @@ export default function BundleEditor({
               : "hover:ring-1 hover:ring-zinc-300"
           }`}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={productBUrl}
-            alt="Product B"
-            draggable={false}
-            className="pointer-events-none max-h-[280px] w-auto max-w-full object-contain drop-shadow-lg"
-          />
+          {displayProductB && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src={displayProductB}
+              alt="Product B"
+              draggable={false}
+              className="pointer-events-none max-h-[280px] w-auto max-w-full object-contain drop-shadow-lg"
+            />
+          )}
         </div>
       </div>
     </div>

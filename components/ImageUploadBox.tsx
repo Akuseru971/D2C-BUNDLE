@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useId, useRef, useState } from "react";
+import { useProcessedProductUrl } from "@/hooks/useProcessedProductUrl";
 import { validateImageFile } from "@/lib/validation";
 
 type ImageUploadBoxProps = {
@@ -21,6 +22,7 @@ export default function ImageUploadBox({
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const processedPreview = useProcessedProductUrl(previewUrl);
 
   const handleFile = useCallback(
     (selected: File | null) => {
@@ -100,13 +102,19 @@ export default function ImageUploadBox({
         />
 
         {previewUrl ? (
-          <div className="flex h-full w-full flex-col items-center gap-3">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewUrl}
-              alt={`${label} preview`}
-              className="max-h-[200px] w-full object-contain sm:max-h-[240px]"
-            />
+          <div className="flex h-full w-full flex-col items-center gap-3 rounded-xl bg-[#f5f5f5] p-3">
+            {processedPreview ? (
+              /* eslint-disable-next-line @next/next/no-img-element */
+              <img
+                src={processedPreview}
+                alt={`${label} preview`}
+                className="max-h-[200px] w-full object-contain sm:max-h-[240px]"
+              />
+            ) : (
+              <div className="flex h-[200px] w-full items-center justify-center sm:h-[240px]">
+                <span className="text-xs text-zinc-400">Processing…</span>
+              </div>
+            )}
             <p className="truncate text-xs text-zinc-500">{file?.name}</p>
             <button
               type="button"
