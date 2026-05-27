@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Bundle Image Generator",
+  title: "Bundle Image Composer",
   description:
-    "Upload two product images and generate a clean marketplace-ready bundle image.",
+    "Upload product photos, arrange them on a 1:1 canvas, and download a marketplace-ready bundle image.",
 };
 
 export default function RootLayout({

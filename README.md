@@ -1,12 +1,14 @@
-# Bundle Image Generator
+# Bundle Image Composer
 
-A simple SaaS MVP that generates marketplace-ready 1:1 e-commerce bundle images from two product photos using the OpenAI Images API.
+Compose marketplace-ready 1:1 e-commerce bundle images from your own product photos. Upload images, arrange them on a canvas with drag/zoom, add an optional logo, and download a PNG — all in the browser, no AI API required.
 
 ## Features
 
-- Upload two product images (drag & drop or file picker)
-- Generate a square bundle image with Product A on top, Product B on bottom, and a premium “+” symbol between them
-- Download the result or generate again
+- Upload Product A, B, and optional Product C
+- Optional logo overlay (your exact file)
+- WYSIWYG canvas editor with undo/redo
+- Click elements to select, drag to move, scroll to zoom
+- Download 1024×1024 PNG
 - No database, no authentication (MVP)
 
 ## Tech stack
@@ -14,7 +16,7 @@ A simple SaaS MVP that generates marketplace-ready 1:1 e-commerce bundle images 
 - Next.js App Router
 - TypeScript
 - Tailwind CSS
-- OpenAI SDK (`gpt-image-1` via `images.edit`)
+- HTML Canvas (client-side composition)
 
 ## Getting started
 
@@ -24,23 +26,7 @@ A simple SaaS MVP that generates marketplace-ready 1:1 e-commerce bundle images 
 npm install
 ```
 
-### 2. Configure environment
-
-Copy the example env file and add your OpenAI API key:
-
-```bash
-cp .env.example .env.local
-```
-
-Edit `.env.local`:
-
-```
-OPENAI_API_KEY=sk-your-key-here
-```
-
-The API key is only used on the server in `/api/generate-bundle`. It is never exposed to the browser.
-
-### 3. Run the dev server
+### 2. Run the dev server
 
 ```bash
 npm run dev
@@ -51,47 +37,28 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Usage
 
 1. Upload **Product A** and **Product B** (PNG, JPG, JPEG, or WEBP, max 10MB each).
-2. Click **Generate Bundle**.
-3. Download the generated image or click **Generate Again**.
-
-## Changing the image model
-
-Edit `IMAGE_MODEL` in `lib/constants.ts`:
-
-```ts
-export const IMAGE_MODEL = "gpt-image-1";
-```
+2. Optionally upload **Product C** and a **Logo**.
+3. The editor and preview appear automatically.
+4. Adjust layout, then **Download PNG**.
 
 ## Project structure
 
 ```
 app/
-  page.tsx                      # Main UI
-  api/generate-bundle/route.ts  # Server API route
+  page.tsx                 # Upload UI + workspace
 components/
-  ImageUploadBox.tsx            # Upload zones with preview
-  GeneratedResult.tsx           # Result display & actions
-  LoadingSpinner.tsx
+  ImageUploadBox.tsx       # Upload zones with preview
+  BundleWorkspace.tsx      # Editor + preview + download
+  BundleEditor.tsx         # Layer controls
+  BundleCanvasView.tsx     # Interactive canvas
 lib/
-  openai.ts                     # OpenAI client & bundle generation
-  constants.ts                  # Model, prompt, limits
-  validation.ts                 # File validation
+  bundle-editor.ts         # Transforms & defaults
+  bundle-layout.ts         # Bounds & hit-testing
+  export-bundle-canvas.ts  # Render & export
+  remove-white-background.ts
+  validation.ts            # File validation
 ```
 
-## Scripts
+## Deploy on Vercel
 
-| Command         | Description              |
-| --------------- | ------------------------ |
-| `npm run dev`   | Start development server |
-| `npm run build` | Production build         |
-| `npm run start` | Start production server  |
-| `npm run lint`  | Run ESLint               |
-
-## Requirements
-
-- Node.js 18+
-- An OpenAI API key with access to GPT image models (`gpt-image-1` or compatible)
-
-## License
-
-MIT
+Push to GitHub and import the repo in Vercel. No API keys are required.
