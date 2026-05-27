@@ -10,6 +10,7 @@ import {
 } from "@/lib/bundle-editor";
 import { getLayerBounds, pickLayerAtPoint } from "@/lib/bundle-layout";
 import type { BundleImageSet } from "@/lib/bundle-layout";
+import { drawOrientedSelectionRing } from "@/lib/canvas-layer-draw";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import { renderBundleCanvas } from "@/lib/export-bundle-canvas";
 
@@ -31,25 +32,6 @@ type BundleCanvasViewProps = {
   className?: string;
   borderStyle?: "solid" | "dashed";
 };
-
-function drawSelectionRing(
-  ctx: CanvasRenderingContext2D,
-  bounds: { x: number; y: number; width: number; height: number },
-  canvasSize: number,
-) {
-  const pad = canvasSize * 0.008;
-  ctx.save();
-  ctx.strokeStyle = "#18181b";
-  ctx.lineWidth = Math.max(1.5, canvasSize * 0.004);
-  ctx.setLineDash([canvasSize * 0.012, canvasSize * 0.008]);
-  ctx.strokeRect(
-    bounds.x - pad,
-    bounds.y - pad,
-    bounds.width + pad * 2,
-    bounds.height + pad * 2,
-  );
-  ctx.restore();
-}
 
 export default function BundleCanvasView({
   productAUrl,
@@ -110,13 +92,11 @@ export default function BundleCanvasView({
     renderBundleCanvas(ctx, images, t, size);
 
     if (interactive && selectedRef.current) {
-      const bounds = getLayerBounds(
-        selectedRef.current,
-        images,
-        t,
-        size,
-      );
-      if (bounds) drawSelectionRing(ctx, bounds, size);
+      const layer = selectedRef.current;
+      const bounds = getLayerBounds(layer, images, t, size);
+      if (bounds) {
+        drawOrientedSelectionRing(ctx, bounds, t[layer].rotation, size);
+      }
     }
   }, [interactive]);
 
@@ -272,7 +252,7 @@ export default function BundleCanvasView({
       />
       {interactive && (
         <p className="pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-medium text-zinc-500 shadow-sm backdrop-blur">
-          Click an element to select · Drag to move · Scroll to zoom
+          Click to select · Drag to move · Scroll to zoom · Use rotation slider
         </p>
       )}
     </div>

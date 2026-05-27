@@ -5,6 +5,7 @@ import {
   computeLogoBounds,
   computeProductBounds,
 } from "@/lib/bundle-layout";
+import { drawOrientedImage } from "@/lib/canvas-layer-draw";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import { BUNDLE_BACKGROUND } from "@/lib/remove-white-background";
 
@@ -16,13 +17,10 @@ function drawProductLayer(
   hasProductC: boolean,
 ) {
   const bounds = computeProductBounds(img, transform, canvasSize, hasProductC);
-
-  ctx.save();
-  ctx.shadowColor = "rgba(0, 0, 0, 0.12)";
-  ctx.shadowBlur = canvasSize * 0.024;
-  ctx.shadowOffsetY = canvasSize * 0.008;
-  ctx.drawImage(img, bounds.x, bounds.y, bounds.width, bounds.height);
-  ctx.restore();
+  drawOrientedImage(ctx, img, bounds, transform.rotation, {
+    shadow: true,
+    canvasSize,
+  });
 }
 
 function drawLogo(
@@ -32,7 +30,7 @@ function drawLogo(
   canvasSize: number,
 ) {
   const bounds = computeLogoBounds(img, transform, canvasSize);
-  ctx.drawImage(img, bounds.x, bounds.y, bounds.width, bounds.height);
+  drawOrientedImage(ctx, img, bounds, transform.rotation);
 }
 
 export function renderBundleCanvas(

@@ -124,16 +124,26 @@ function getHitTestLayerOrder(images: BundleImageSet): LayerId[] {
   return layers.reverse();
 }
 
-function pointInBounds(
+export function pointInRotatedBounds(
   x: number,
   y: number,
   bounds: LayerBounds,
+  rotationDegrees: number,
 ): boolean {
+  const rad = (-rotationDegrees * Math.PI) / 180;
+  const dx = x - bounds.centerX;
+  const dy = y - bounds.centerY;
+  const cos = Math.cos(rad);
+  const sin = Math.sin(rad);
+  const localX = dx * cos - dy * sin;
+  const localY = dx * sin + dy * cos;
+  const halfW = bounds.width / 2;
+  const halfH = bounds.height / 2;
   return (
-    x >= bounds.x &&
-    x <= bounds.x + bounds.width &&
-    y >= bounds.y &&
-    y <= bounds.y + bounds.height
+    localX >= -halfW &&
+    localX <= halfW &&
+    localY >= -halfH &&
+    localY <= halfH
   );
 }
 
@@ -146,7 +156,10 @@ export function pickLayerAtPoint(
 ): LayerId | null {
   for (const layer of getHitTestLayerOrder(images)) {
     const bounds = getLayerBounds(layer, images, transforms, canvasSize);
-    if (bounds && pointInBounds(x, y, bounds)) {
+    if (
+      bounds &&
+      pointInRotatedBounds(x, y, bounds, transforms[layer].rotation)
+    ) {
       return layer;
     }
   }

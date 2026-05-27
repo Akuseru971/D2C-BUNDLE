@@ -9,9 +9,14 @@ import {
   MAX_SCALE,
   MIN_SCALE,
   MIN_SCALE_LOGO,
+  MAX_ROTATION,
+  MIN_ROTATION,
+  ROTATION_BUTTON_STEP,
+  ROTATION_STEP,
   SCALE_STEP,
   type BundleTransforms,
   type LayerId,
+  clampRotation,
   clampScale,
 } from "@/lib/bundle-editor";
 
@@ -95,6 +100,42 @@ export default function BundleEditor({
         ...prev[activeLayer],
         x: CANVAS_CENTER.x,
         y: CANVAS_CENTER.y,
+      },
+    }));
+    onCommit();
+  };
+
+  const updateLayerRotation = (value: number) => {
+    onTransformsChange((prev) => ({
+      ...prev,
+      [activeLayer]: {
+        ...prev[activeLayer],
+        rotation: clampRotation(value),
+      },
+    }));
+  };
+
+  const rotateSelected = (direction: "left" | "right") => {
+    onBeginGesture();
+    const delta =
+      direction === "right" ? ROTATION_BUTTON_STEP : -ROTATION_BUTTON_STEP;
+    onTransformsChange((prev) => ({
+      ...prev,
+      [activeLayer]: {
+        ...prev[activeLayer],
+        rotation: clampRotation(prev[activeLayer].rotation + delta),
+      },
+    }));
+    onCommit();
+  };
+
+  const resetRotation = () => {
+    onBeginGesture();
+    onTransformsChange((prev) => ({
+      ...prev,
+      [activeLayer]: {
+        ...prev[activeLayer],
+        rotation: 0,
       },
     }));
     onCommit();
@@ -201,6 +242,62 @@ export default function BundleEditor({
             aria-label="Zoom in"
           >
             +
+          </button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 backdrop-blur-sm">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-medium text-zinc-600">
+            Rotation — {LAYER_LABELS[activeLayer]}
+          </span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs tabular-nums text-zinc-500">
+              {Math.round(selected.rotation)}°
+            </span>
+            {selected.rotation !== 0 && (
+              <button
+                type="button"
+                onClick={resetRotation}
+                className="text-[10px] font-medium text-zinc-500 underline-offset-2 hover:text-zinc-800 hover:underline"
+              >
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => rotateSelected("left")}
+            disabled={selected.rotation <= MIN_ROTATION}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-sm font-medium disabled:opacity-40"
+            aria-label="Rotate counter-clockwise"
+            title="−15°"
+          >
+            ↺
+          </button>
+          <input
+            type="range"
+            min={MIN_ROTATION}
+            max={MAX_ROTATION}
+            step={ROTATION_STEP}
+            value={selected.rotation}
+            onPointerDown={onBeginGesture}
+            onChange={(e) => updateLayerRotation(parseFloat(e.target.value))}
+            onPointerUp={onCommit}
+            onTouchEnd={onCommit}
+            className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-200 accent-zinc-900"
+          />
+          <button
+            type="button"
+            onClick={() => rotateSelected("right")}
+            disabled={selected.rotation >= MAX_ROTATION}
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-sm font-medium disabled:opacity-40"
+            aria-label="Rotate clockwise"
+            title="+15°"
+          >
+            ↻
           </button>
         </div>
       </div>
