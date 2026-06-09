@@ -10,28 +10,76 @@ export type LayerTransform = {
 
 export type BundleTransforms = Record<LayerId, LayerTransform>;
 
-const DEFAULT_TWO_PRODUCTS: BundleTransforms = {
-  productA: { x: 50, y: 30, scale: 1, rotation: 0 },
-  productB: { x: 50, y: 70, scale: 1, rotation: 0 },
-  productC: { x: 50, y: 50, scale: 1, rotation: 0 },
-  logo: { x: 88, y: 14, scale: 0.575, rotation: 0 },
+const INACTIVE_LAYER: LayerTransform = {
+  x: 50,
+  y: 50,
+  scale: 1,
+  rotation: 0,
 };
 
-const DEFAULT_THREE_PRODUCTS: BundleTransforms = {
-  productA: { x: 50, y: 22, scale: 1, rotation: 0 },
-  productB: { x: 50, y: 50, scale: 1, rotation: 0 },
-  productC: { x: 50, y: 78, scale: 1, rotation: 0 },
-  logo: { x: 88, y: 14, scale: 0.575, rotation: 0 },
+const DEFAULT_LOGO: LayerTransform = {
+  x: 88,
+  y: 14,
+  scale: 0.575,
+  rotation: 0,
 };
 
-export function getDefaultTransforms(hasProductC: boolean): BundleTransforms {
-  const base = hasProductC ? DEFAULT_THREE_PRODUCTS : DEFAULT_TWO_PRODUCTS;
-  return {
-    productA: { ...base.productA },
-    productB: { ...base.productB },
-    productC: { ...base.productC },
-    logo: { ...base.logo },
+const TWO_PRODUCT_POSITIONS: LayerTransform[] = [
+  { x: 50, y: 30, scale: 1, rotation: 0 },
+  { x: 50, y: 70, scale: 1, rotation: 0 },
+];
+
+const THREE_PRODUCT_POSITIONS: LayerTransform[] = [
+  { x: 50, y: 22, scale: 1, rotation: 0 },
+  { x: 50, y: 50, scale: 1, rotation: 0 },
+  { x: 50, y: 78, scale: 1, rotation: 0 },
+];
+
+const PRODUCT_LAYER_IDS: LayerId[] = ["productA", "productB", "productC"];
+
+export function getActiveProductLayers(
+  productAUrl?: string | null,
+  productBUrl?: string | null,
+  productCUrl?: string | null,
+): LayerId[] {
+  const layers: LayerId[] = [];
+  if (productAUrl) layers.push("productA");
+  if (productBUrl) layers.push("productB");
+  if (productCUrl) layers.push("productC");
+  return layers;
+}
+
+export function getDefaultTransforms(
+  activeProducts: LayerId[],
+): BundleTransforms {
+  const transforms: BundleTransforms = {
+    productA: { ...INACTIVE_LAYER },
+    productB: { ...INACTIVE_LAYER },
+    productC: { ...INACTIVE_LAYER },
+    logo: { ...DEFAULT_LOGO },
   };
+
+  if (activeProducts.length === 0) {
+    return transforms;
+  }
+
+  if (activeProducts.length === 1) {
+    transforms[activeProducts[0]] = { x: 50, y: 50, scale: 1, rotation: 0 };
+    return transforms;
+  }
+
+  const positions =
+    activeProducts.length >= 3
+      ? THREE_PRODUCT_POSITIONS
+      : TWO_PRODUCT_POSITIONS;
+
+  activeProducts.forEach((layer, index) => {
+    transforms[layer] = {
+      ...(positions[index] ?? positions[positions.length - 1]),
+    };
+  });
+
+  return transforms;
 }
 
 export const LAYER_LABELS: Record<LayerId, string> = {
@@ -43,7 +91,7 @@ export const LAYER_LABELS: Record<LayerId, string> = {
 
 export const MIN_SCALE = 0.35;
 export const MIN_SCALE_LOGO = 0.2;
-export const MAX_SCALE = 2.5;
+export const MAX_SCALE = 4;
 export const SCALE_STEP = 0.05;
 
 export const MIN_ROTATION = -180;
@@ -93,11 +141,14 @@ export function applyRotation(degrees: number): number {
 export const CANVAS_CENTER = { x: 50, y: 50 } as const;
 
 export function getEditorLayerOrder(
-  hasProductC: boolean,
+  activeProducts: LayerId[],
   hasLogo: boolean,
 ): LayerId[] {
-  const layers: LayerId[] = ["productA", "productB"];
-  if (hasProductC) layers.push("productC");
+  const layers = [...activeProducts];
   if (hasLogo) layers.push("logo");
   return layers;
+}
+
+export function isProductLayer(layer: LayerId): boolean {
+  return PRODUCT_LAYER_IDS.includes(layer);
 }

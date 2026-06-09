@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import BundleWorkspace from "@/components/BundleWorkspace";
 import ImageUploadBox from "@/components/ImageUploadBox";
 
@@ -36,7 +36,13 @@ export default function HomePage() {
 
   const [error, setError] = useState<string | null>(null);
 
-  const canCompose = Boolean(productA.previewUrl && productB.previewUrl);
+  const canCompose = useMemo(
+    () =>
+      Boolean(
+        productA.previewUrl || productB.previewUrl || productC.previewUrl,
+      ),
+    [productA.previewUrl, productB.previewUrl, productC.previewUrl],
+  );
 
   const handleEditUploads = () => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -50,8 +56,8 @@ export default function HomePage() {
             Bundle Image Composer
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-zinc-600 sm:text-base">
-            Upload your product photos, arrange them on a clean 1:1 canvas, and
-            download a marketplace-ready bundle image.
+            Upload one or more product photos, arrange them on a clean 1:1
+            canvas, and download a marketplace-ready bundle image.
           </p>
         </header>
 
@@ -61,14 +67,14 @@ export default function HomePage() {
         >
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
             <ImageUploadBox
-              label="Product A"
+              label="Product A (optional)"
               file={productA.file}
               previewUrl={productA.previewUrl}
               onFileChange={productA.setProduct}
               onError={setError}
             />
             <ImageUploadBox
-              label="Product B"
+              label="Product B (optional)"
               file={productB.file}
               previewUrl={productB.previewUrl}
               onFileChange={productB.setProduct}
@@ -92,7 +98,7 @@ export default function HomePage() {
 
           {!canCompose && (
             <p className="mt-6 text-center text-sm text-zinc-500">
-              Upload Product A and Product B to open the editor and preview.
+              Upload at least one product image to open the editor and preview.
             </p>
           )}
 
@@ -106,7 +112,7 @@ export default function HomePage() {
           )}
         </section>
 
-        {canCompose && productA.previewUrl && productB.previewUrl && (
+        {canCompose && (
           <BundleWorkspace
             productAUrl={productA.previewUrl}
             productBUrl={productB.previewUrl}

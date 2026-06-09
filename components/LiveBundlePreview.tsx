@@ -4,8 +4,8 @@ import BundleCanvasView from "@/components/BundleCanvasView";
 import type { BundleTransforms } from "@/lib/bundle-editor";
 
 type LiveBundlePreviewProps = {
-  productAUrl: string;
-  productBUrl: string;
+  productAUrl?: string | null;
+  productBUrl?: string | null;
   productCUrl?: string | null;
   logoUrl?: string | null;
   transforms: BundleTransforms;
@@ -14,8 +14,8 @@ type LiveBundlePreviewProps = {
 };
 
 export default function LiveBundlePreview({
-  productAUrl,
-  productBUrl,
+  productAUrl = null,
+  productBUrl = null,
   productCUrl = null,
   logoUrl = null,
   transforms,

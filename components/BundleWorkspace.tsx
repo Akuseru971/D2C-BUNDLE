@@ -1,29 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import BundleEditor from "@/components/BundleEditor";
 import LiveBundlePreview from "@/components/LiveBundlePreview";
 import { useTransformHistory } from "@/hooks/useTransformHistory";
-import { EXPORT_SIZE, getDefaultTransforms } from "@/lib/bundle-editor";
+import {
+  EXPORT_SIZE,
+  getActiveProductLayers,
+  getDefaultTransforms,
+} from "@/lib/bundle-editor";
 import { renderBundleToDataUrl } from "@/lib/export-bundle-canvas";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 
 type BundleWorkspaceProps = {
-  productAUrl: string;
-  productBUrl: string;
+  productAUrl?: string | null;
+  productBUrl?: string | null;
   productCUrl?: string | null;
   logoUrl?: string | null;
   onEditUploads: () => void;
 };
 
 export default function BundleWorkspace({
-  productAUrl,
-  productBUrl,
+  productAUrl = null,
+  productBUrl = null,
   productCUrl = null,
   logoUrl = null,
   onEditUploads,
 }: BundleWorkspaceProps) {
-  const hasProductC = Boolean(productCUrl);
+  const activeProducts = useMemo(
+    () => getActiveProductLayers(productAUrl, productBUrl, productCUrl),
+    [productAUrl, productBUrl, productCUrl],
+  );
+
+  const layoutKey = useMemo(
+    () =>
+      [productAUrl ?? "", productBUrl ?? "", productCUrl ?? "", logoUrl ?? ""].join(
+        "|",
+      ),
+    [productAUrl, productBUrl, productCUrl, logoUrl],
+  );
+
   const [isInteracting, setIsInteracting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
@@ -37,14 +53,18 @@ export default function BundleWorkspace({
     canUndo,
     canRedo,
     resetHistory,
-  } = useTransformHistory(getDefaultTransforms(hasProductC));
+  } = useTransformHistory(getDefaultTransforms(activeProducts));
 
   useEffect(() => {
-    resetHistory(getDefaultTransforms(hasProductC));
-  }, [hasProductC, resetHistory]);
+    resetHistory(
+      getDefaultTransforms(
+        getActiveProductLayers(productAUrl, productBUrl, productCUrl),
+      ),
+    );
+  }, [layoutKey, productAUrl, productBUrl, productCUrl, resetHistory]);
 
   const handleReset = () => {
-    resetHistory(getDefaultTransforms(hasProductC));
+    resetHistory(getDefaultTransforms(activeProducts));
   };
 
   const handleDownload = async () => {
@@ -57,9 +77,9 @@ export default function BundleWorkspace({
         logoUrl,
       );
       const href = await renderBundleToDataUrl(
+        transforms,
         productAUrl,
         productBUrl,
-        transforms,
         productCUrl,
         logoUrl,
       );

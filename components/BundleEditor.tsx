@@ -4,6 +4,7 @@ import { useState } from "react";
 import BundleCanvasView from "@/components/BundleCanvasView";
 import {
   CANVAS_CENTER,
+  getActiveProductLayers,
   getEditorLayerOrder,
   LAYER_LABELS,
   MAX_SCALE,
@@ -21,8 +22,8 @@ import {
 } from "@/lib/bundle-editor";
 
 type BundleEditorProps = {
-  productAUrl: string;
-  productBUrl: string;
+  productAUrl?: string | null;
+  productBUrl?: string | null;
   productCUrl?: string | null;
   logoUrl?: string | null;
   transforms: BundleTransforms;
@@ -40,8 +41,8 @@ type BundleEditorProps = {
 };
 
 export default function BundleEditor({
-  productAUrl,
-  productBUrl,
+  productAUrl = null,
+  productBUrl = null,
   productCUrl = null,
   logoUrl = null,
   transforms,
@@ -55,17 +56,20 @@ export default function BundleEditor({
   onReset,
   onInteractingChange,
 }: BundleEditorProps) {
-  const hasProductC = Boolean(productCUrl);
+  const activeProducts = getActiveProductLayers(
+    productAUrl,
+    productBUrl,
+    productCUrl,
+  );
   const hasLogo = Boolean(logoUrl);
-  const layerOrder = getEditorLayerOrder(hasProductC, hasLogo);
-  const [selectedLayer, setSelectedLayer] = useState<LayerId>("productA");
+  const layerOrder = getEditorLayerOrder(activeProducts, hasLogo);
+  const [selectedLayer, setSelectedLayer] = useState<LayerId>(
+    () => layerOrder[0] ?? "productA",
+  );
 
-  const activeLayer =
-    selectedLayer === "productC" && !hasProductC
-      ? "productA"
-      : selectedLayer === "logo" && !hasLogo
-        ? "productA"
-        : selectedLayer;
+  const activeLayer = layerOrder.includes(selectedLayer)
+    ? selectedLayer
+    : (layerOrder[0] ?? "productA");
 
   const minScale = activeLayer === "logo" ? MIN_SCALE_LOGO : MIN_SCALE;
 

@@ -86,14 +86,14 @@ export function getCachedLogo(src: string): Promise<HTMLImageElement> {
 }
 
 export function preloadBundleImages(
-  productAUrl: string,
-  productBUrl: string,
+  productAUrl?: string | null,
+  productBUrl?: string | null,
   productCUrl?: string | null,
   logoUrl?: string | null,
 ): Promise<BundleImageSet> {
   return Promise.all([
-    getCachedProductImage(productAUrl),
-    getCachedProductImage(productBUrl),
+    productAUrl ? getCachedProductImage(productAUrl) : Promise.resolve(null),
+    productBUrl ? getCachedProductImage(productBUrl) : Promise.resolve(null),
     productCUrl ? getCachedProductImage(productCUrl) : Promise.resolve(null),
     logoUrl ? getCachedLogo(logoUrl) : Promise.resolve(null),
   ]).then(([productA, productB, productC, logo]) => ({

@@ -28,8 +28,8 @@ import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import { renderBundleCanvas } from "@/lib/export-bundle-canvas";
 
 type BundleCanvasViewProps = {
-  productAUrl: string;
-  productBUrl: string;
+  productAUrl?: string | null;
+  productBUrl?: string | null;
   productCUrl?: string | null;
   logoUrl?: string | null;
   transforms: BundleTransforms;
@@ -75,8 +75,8 @@ function getCanvasPoint(
 }
 
 export default function BundleCanvasView({
-  productAUrl,
-  productBUrl,
+  productAUrl = null,
+  productBUrl = null,
   productCUrl = null,
   logoUrl = null,
   transforms,

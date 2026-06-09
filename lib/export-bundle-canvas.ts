@@ -1,22 +1,30 @@
-import type { BundleTransforms } from "@/lib/bundle-editor";
+import type { BundleTransforms, LayerId } from "@/lib/bundle-editor";
 import { EXPORT_SIZE } from "@/lib/bundle-editor";
 import type { BundleImageSet } from "@/lib/bundle-layout";
 import {
   computeLogoBounds,
   computeProductBounds,
+  getActiveProductCount,
 } from "@/lib/bundle-layout";
 import { drawOrientedImage } from "@/lib/canvas-layer-draw";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import { BUNDLE_BACKGROUND } from "@/lib/remove-white-background";
+
+const PRODUCT_DRAW_ORDER: LayerId[] = ["productA", "productB", "productC"];
 
 function drawProductLayer(
   ctx: CanvasRenderingContext2D,
   img: HTMLImageElement,
   transform: BundleTransforms["productA"],
   canvasSize: number,
-  hasProductC: boolean,
+  activeProductCount: number,
 ) {
-  const bounds = computeProductBounds(img, transform, canvasSize, hasProductC);
+  const bounds = computeProductBounds(
+    img,
+    transform,
+    canvasSize,
+    activeProductCount,
+  );
   drawOrientedImage(ctx, img, bounds, transform.rotation, {
     shadow: true,
     canvasSize,
@@ -39,33 +47,20 @@ export function renderBundleCanvas(
   transforms: BundleTransforms,
   canvasSize: number = EXPORT_SIZE,
 ) {
-  const hasProductC = Boolean(images.productC);
+  const activeProductCount = getActiveProductCount(images);
 
   ctx.fillStyle = BUNDLE_BACKGROUND;
   ctx.fillRect(0, 0, canvasSize, canvasSize);
 
-  drawProductLayer(
-    ctx,
-    images.productA,
-    transforms.productA,
-    canvasSize,
-    hasProductC,
-  );
-  drawProductLayer(
-    ctx,
-    images.productB,
-    transforms.productB,
-    canvasSize,
-    hasProductC,
-  );
-
-  if (images.productC) {
+  for (const layer of PRODUCT_DRAW_ORDER) {
+    const img = images[layer];
+    if (!img) continue;
     drawProductLayer(
       ctx,
-      images.productC,
-      transforms.productC,
+      img,
+      transforms[layer],
       canvasSize,
-      true,
+      activeProductCount,
     );
   }
 
@@ -75,9 +70,9 @@ export function renderBundleCanvas(
 }
 
 export async function renderBundleToDataUrl(
-  productAUrl: string,
-  productBUrl: string,
   transforms: BundleTransforms,
+  productAUrl?: string | null,
+  productBUrl?: string | null,
   productCUrl?: string | null,
   logoUrl?: string | null,
 ): Promise<string> {

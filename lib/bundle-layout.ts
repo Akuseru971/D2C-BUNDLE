@@ -1,8 +1,10 @@
 import type { BundleTransforms, LayerId, LayerTransform } from "@/lib/bundle-editor";
 
+export const PRODUCT_MAX_HEIGHT_RATIO_ONE = 0.78;
 export const PRODUCT_MAX_HEIGHT_RATIO_TWO = 0.34;
 export const PRODUCT_MAX_HEIGHT_RATIO_THREE = 0.26;
 export const PRODUCT_MAX_WIDTH_RATIO = 0.85;
+export const PRODUCT_MAX_WIDTH_RATIO_ONE = 0.95;
 export const LOGO_MAX_WIDTH_RATIO = 0.17;
 
 export type LayerBounds = {
@@ -14,27 +16,46 @@ export type LayerBounds = {
   centerY: number;
 };
 
-function productHeightRatio(hasProductC: boolean): number {
-  return hasProductC
-    ? PRODUCT_MAX_HEIGHT_RATIO_THREE
-    : PRODUCT_MAX_HEIGHT_RATIO_TWO;
+export type BundleImageSet = {
+  productA: HTMLImageElement | null;
+  productB: HTMLImageElement | null;
+  productC: HTMLImageElement | null;
+  logo: HTMLImageElement | null;
+};
+
+export function getActiveProductCount(images: BundleImageSet): number {
+  return [images.productA, images.productB, images.productC].filter(Boolean)
+    .length;
+}
+
+function productHeightRatio(activeProductCount: number): number {
+  if (activeProductCount >= 3) return PRODUCT_MAX_HEIGHT_RATIO_THREE;
+  if (activeProductCount === 2) return PRODUCT_MAX_HEIGHT_RATIO_TWO;
+  return PRODUCT_MAX_HEIGHT_RATIO_ONE;
+}
+
+function productWidthRatio(activeProductCount: number): number {
+  return activeProductCount === 1
+    ? PRODUCT_MAX_WIDTH_RATIO_ONE
+    : PRODUCT_MAX_WIDTH_RATIO;
 }
 
 export function computeProductBounds(
   img: HTMLImageElement,
   transform: LayerTransform,
   canvasSize: number,
-  hasProductC: boolean,
+  activeProductCount: number,
 ): LayerBounds {
   const centerX = (transform.x / 100) * canvasSize;
   const centerY = (transform.y / 100) * canvasSize;
   const maxHeight =
-    canvasSize * productHeightRatio(hasProductC) * transform.scale;
+    canvasSize * productHeightRatio(activeProductCount) * transform.scale;
   const ratio = img.width / img.height;
   let drawHeight = maxHeight;
   let drawWidth = drawHeight * ratio;
 
-  const maxWidth = canvasSize * PRODUCT_MAX_WIDTH_RATIO * transform.scale;
+  const maxWidth =
+    canvasSize * productWidthRatio(activeProductCount) * transform.scale;
   if (drawWidth > maxWidth) {
     drawWidth = maxWidth;
     drawHeight = drawWidth / ratio;
@@ -72,35 +93,30 @@ export function computeLogoBounds(
   };
 }
 
-export type BundleImageSet = {
-  productA: HTMLImageElement;
-  productB: HTMLImageElement;
-  productC: HTMLImageElement | null;
-  logo: HTMLImageElement | null;
-};
-
 export function getLayerBounds(
   layer: LayerId,
   images: BundleImageSet,
   transforms: BundleTransforms,
   canvasSize: number,
 ): LayerBounds | null {
-  const hasProductC = Boolean(images.productC);
+  const activeProductCount = getActiveProductCount(images);
 
   switch (layer) {
     case "productA":
+      if (!images.productA) return null;
       return computeProductBounds(
         images.productA,
         transforms.productA,
         canvasSize,
-        hasProductC,
+        activeProductCount,
       );
     case "productB":
+      if (!images.productB) return null;
       return computeProductBounds(
         images.productB,
         transforms.productB,
         canvasSize,
-        hasProductC,
+        activeProductCount,
       );
     case "productC":
       if (!images.productC) return null;
@@ -108,7 +124,7 @@ export function getLayerBounds(
         images.productC,
         transforms.productC,
         canvasSize,
-        true,
+        activeProductCount,
       );
     case "logo":
       if (!images.logo) return null;
@@ -118,7 +134,9 @@ export function getLayerBounds(
 
 /** Top-most layer first (matches draw order: products then logo on top). */
 function getHitTestLayerOrder(images: BundleImageSet): LayerId[] {
-  const layers: LayerId[] = ["productA", "productB"];
+  const layers: LayerId[] = [];
+  if (images.productA) layers.push("productA");
+  if (images.productB) layers.push("productB");
   if (images.productC) layers.push("productC");
   if (images.logo) layers.push("logo");
   return layers.reverse();
