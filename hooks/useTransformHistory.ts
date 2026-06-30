@@ -1,16 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useReducer } from "react";
-import type { BundleTransforms } from "@/lib/bundle-editor";
+import { createEmptyTransforms, type BundleTransforms } from "@/lib/bundle-editor";
 
 function cloneTransforms(t: BundleTransforms): BundleTransforms {
-  return {
-    productA: { ...t.productA },
-    productB: { ...t.productB },
-    productC: { ...t.productC },
-    logo: { ...t.logo },
-    background: { ...t.background },
-  };
+  const next = createEmptyTransforms();
+  for (const layer of Object.keys(next) as (keyof BundleTransforms)[]) {
+    next[layer] = { ...t[layer] };
+  }
+  return next;
 }
 
 function transformsEqual(a: BundleTransforms, b: BundleTransforms): boolean {

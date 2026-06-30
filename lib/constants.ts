@@ -8,3 +8,5 @@ export const ALLOWED_MIME_TYPES = [
 ] as const;
 
 export const ALLOWED_EXTENSIONS = [".png", ".jpg", ".jpeg", ".webp"] as const;
+
+export const MAX_PRODUCT_ELEMENTS = 15;

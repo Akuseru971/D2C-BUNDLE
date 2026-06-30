@@ -6,8 +6,9 @@ import {
   CANVAS_CENTER,
   getActiveProductLayers,
   getEditorLayerOrder,
+  getLayerLabel,
+  getProductLayerId,
   isProductLayer,
-  LAYER_LABELS,
   MAX_SCALE,
   MIN_SCALE,
   MIN_SCALE_LOGO,
@@ -23,9 +24,7 @@ import {
 } from "@/lib/bundle-editor";
 
 type BundleEditorProps = {
-  productAUrl?: string | null;
-  productBUrl?: string | null;
-  productCUrl?: string | null;
+  productUrls: ReadonlyArray<string | null>;
   logoUrl?: string | null;
   backgroundUrl?: string | null;
   transforms: BundleTransforms;
@@ -43,9 +42,7 @@ type BundleEditorProps = {
 };
 
 export default function BundleEditor({
-  productAUrl = null,
-  productBUrl = null,
-  productCUrl = null,
+  productUrls,
   logoUrl = null,
   backgroundUrl = null,
   transforms,
@@ -59,11 +56,7 @@ export default function BundleEditor({
   onReset,
   onInteractingChange,
 }: BundleEditorProps) {
-  const activeProducts = getActiveProductLayers(
-    productAUrl,
-    productBUrl,
-    productCUrl,
-  );
+  const activeProducts = getActiveProductLayers(productUrls);
   const hasLogo = Boolean(logoUrl);
   const hasBackground = Boolean(backgroundUrl);
   const layerOrder = getEditorLayerOrder(
@@ -72,7 +65,7 @@ export default function BundleEditor({
     hasBackground,
   );
   const [selectedLayer, setSelectedLayer] = useState<LayerId>(
-    () => layerOrder[0] ?? "productA",
+    () => layerOrder[0] ?? getProductLayerId(0),
   );
   const [lockedLayer, setLockedLayer] = useState<LayerId | null>(null);
   const [selectedLayers, setSelectedLayers] = useState<LayerId[]>(() =>
@@ -81,7 +74,7 @@ export default function BundleEditor({
 
   const activeLayer = layerOrder.includes(selectedLayer)
     ? selectedLayer
-    : (layerOrder[0] ?? "productA");
+    : (layerOrder[0] ?? getProductLayerId(0));
 
   const effectiveLockedLayer =
     lockedLayer && layerOrder.includes(lockedLayer) ? lockedLayer : null;
@@ -246,7 +239,7 @@ export default function BundleEditor({
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2">
+      <div className="flex max-h-32 flex-wrap gap-2 overflow-y-auto">
         {layerOrder.map((layer) => (
           <button
             key={layer}
@@ -260,7 +253,7 @@ export default function BundleEditor({
                   : "border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
             }`}
           >
-            {LAYER_LABELS[layer]}
+            {getLayerLabel(layer)}
           </button>
         ))}
       </div>
@@ -277,7 +270,7 @@ export default function BundleEditor({
             Scale —{" "}
             {transformTargets.length > 1
               ? `${transformTargets.length} layers`
-              : LAYER_LABELS[primaryLayer]}
+              : getLayerLabel(primaryLayer)}
             {effectiveLockedLayer && (
               <span className="ml-1 text-[10px] font-normal text-zinc-400">
                 (locked)
@@ -325,7 +318,7 @@ export default function BundleEditor({
       <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 backdrop-blur-sm">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-medium text-zinc-600">
-            Rotation — {LAYER_LABELS[primaryLayer]} (snaps at 0° / ±90°)
+            Rotation — {getLayerLabel(primaryLayer)} (snaps at 0° / ±90°)
           </span>
           <div className="flex items-center gap-2">
             <span className="text-xs tabular-nums text-zinc-500">
@@ -379,9 +372,7 @@ export default function BundleEditor({
       </div>
 
       <BundleCanvasView
-        productAUrl={productAUrl}
-        productBUrl={productBUrl}
-        productCUrl={productCUrl}
+        productUrls={productUrls}
         logoUrl={logoUrl}
         backgroundUrl={backgroundUrl}
         transforms={transforms}

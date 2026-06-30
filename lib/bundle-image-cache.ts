@@ -2,6 +2,7 @@ import {
   processBadgeImage,
   processProductImage,
 } from "@/lib/remove-white-background";
+import { PRODUCT_LAYER_IDS, type ProductLayerId } from "@/lib/bundle-editor";
 import type { BundleImageSet } from "@/lib/bundle-layout";
 
 const rawCache = new Map<string, HTMLImageElement>();
@@ -105,23 +106,32 @@ export function getCachedBackground(src: string): Promise<HTMLImageElement> {
 }
 
 export function preloadBundleImages(
-  productAUrl?: string | null,
-  productBUrl?: string | null,
-  productCUrl?: string | null,
+  productUrls: ReadonlyArray<string | null | undefined>,
   logoUrl?: string | null,
   backgroundUrl?: string | null,
 ): Promise<BundleImageSet> {
+  const productPromises = PRODUCT_LAYER_IDS.map((layer, index) => {
+    const url = productUrls[index];
+    if (!url) return Promise.resolve(null);
+    return getCachedProductImage(url).then(
+      (img): { layer: ProductLayerId; img: HTMLImageElement } => ({
+        layer,
+        img,
+      }),
+      () => null,
+    );
+  });
+
   return Promise.all([
-    productAUrl ? getCachedProductImage(productAUrl) : Promise.resolve(null),
-    productBUrl ? getCachedProductImage(productBUrl) : Promise.resolve(null),
-    productCUrl ? getCachedProductImage(productCUrl) : Promise.resolve(null),
+    Promise.all(productPromises),
     logoUrl ? getCachedLogo(logoUrl) : Promise.resolve(null),
     backgroundUrl ? getCachedBackground(backgroundUrl) : Promise.resolve(null),
-  ]).then(([productA, productB, productC, logo, background]) => ({
-    productA,
-    productB,
-    productC,
-    logo,
-    background,
-  }));
+  ]).then(([productEntries, logo, background]) => {
+    const products: Partial<Record<ProductLayerId, HTMLImageElement>> = {};
+    for (const entry of productEntries) {
+      if (!entry) continue;
+      products[entry.layer] = entry.img;
+    }
+    return { products, logo, background };
+  });
 }

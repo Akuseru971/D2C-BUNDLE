@@ -16,38 +16,32 @@ import { renderBundleToDataUrl } from "@/lib/export-bundle-canvas";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 
 type BundleWorkspaceProps = {
-  productAUrl?: string | null;
-  productBUrl?: string | null;
-  productCUrl?: string | null;
+  productUrls: ReadonlyArray<string | null>;
   logoUrl?: string | null;
   backgroundUrl?: string | null;
   onEditUploads: () => void;
 };
 
 export default function BundleWorkspace({
-  productAUrl = null,
-  productBUrl = null,
-  productCUrl = null,
+  productUrls,
   logoUrl = null,
   backgroundUrl = null,
   onEditUploads,
 }: BundleWorkspaceProps) {
   const activeProducts = useMemo(
-    () => getActiveProductLayers(productAUrl, productBUrl, productCUrl),
-    [productAUrl, productBUrl, productCUrl],
+    () => getActiveProductLayers(productUrls),
+    [productUrls],
   );
   const hasBackground = Boolean(backgroundUrl);
 
   const layoutKey = useMemo(
     () =>
       [
-        productAUrl ?? "",
-        productBUrl ?? "",
-        productCUrl ?? "",
+        ...productUrls.map((url) => url ?? ""),
         logoUrl ?? "",
         backgroundUrl ?? "",
       ].join("|"),
-    [productAUrl, productBUrl, productCUrl, logoUrl, backgroundUrl],
+    [productUrls, logoUrl, backgroundUrl],
   );
 
   const [isInteracting, setIsInteracting] = useState(false);
@@ -68,23 +62,13 @@ export default function BundleWorkspace({
   } = useTransformHistory(getDefaultTransforms(activeProducts, hasBackground));
 
   useEffect(() => {
-    const nextActive = getActiveLayers(
-      productAUrl,
-      productBUrl,
-      productCUrl,
-      logoUrl,
-      backgroundUrl,
-    );
+    const nextActive = getActiveLayers(productUrls, logoUrl, backgroundUrl);
     const previousActive = prevActiveLayersRef.current;
 
     if (previousActive !== null) {
       const added = nextActive.filter((layer) => !previousActive.includes(layer));
       if (added.length > 0) {
-        const activeProducts = getActiveProductLayers(
-          productAUrl,
-          productBUrl,
-          productCUrl,
-        );
+        const activeProducts = getActiveProductLayers(productUrls);
         setTransforms((current) =>
           mergeTransformsForNewLayers(
             current,
@@ -100,9 +84,7 @@ export default function BundleWorkspace({
     prevActiveLayersRef.current = nextActive;
   }, [
     layoutKey,
-    productAUrl,
-    productBUrl,
-    productCUrl,
+    productUrls,
     logoUrl,
     backgroundUrl,
     setTransforms,
@@ -116,18 +98,10 @@ export default function BundleWorkspace({
   const handleDownload = async () => {
     setIsExporting(true);
     try {
-      await preloadBundleImages(
-        productAUrl,
-        productBUrl,
-        productCUrl,
-        logoUrl,
-        backgroundUrl,
-      );
+      await preloadBundleImages(productUrls, logoUrl, backgroundUrl);
       const href = await renderBundleToDataUrl(
         transforms,
-        productAUrl,
-        productBUrl,
-        productCUrl,
+        productUrls,
         logoUrl,
         backgroundUrl,
       );
@@ -159,9 +133,7 @@ export default function BundleWorkspace({
             Preview
           </p>
           <LiveBundlePreview
-            productAUrl={productAUrl}
-            productBUrl={productBUrl}
-            productCUrl={productCUrl}
+            productUrls={productUrls}
             logoUrl={logoUrl}
             backgroundUrl={backgroundUrl}
             transforms={transforms}
@@ -178,9 +150,7 @@ export default function BundleWorkspace({
             Adjust elements
           </p>
           <BundleEditor
-            productAUrl={productAUrl}
-            productBUrl={productBUrl}
-            productCUrl={productCUrl}
+            productUrls={productUrls}
             logoUrl={logoUrl}
             backgroundUrl={backgroundUrl}
             transforms={transforms}

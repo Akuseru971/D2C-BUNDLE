@@ -1,37 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import BundleWorkspace from "@/components/BundleWorkspace";
 import ImageUploadBox from "@/components/ImageUploadBox";
-
-function useProductUpload() {
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
-  const setProduct = useCallback(
-    (nextFile: File | null, nextPreview: string | null) => {
-      setPreviewUrl((prev) => {
-        if (prev) URL.revokeObjectURL(prev);
-        return nextPreview;
-      });
-      setFile(nextFile);
-    },
-    [],
-  );
-
-  useEffect(() => {
-    return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
-    };
-  }, [previewUrl]);
-
-  return { file, previewUrl, setProduct };
-}
+import { useProductUpload, useProductUploads } from "@/hooks/useProductUploads";
+import { MAX_PRODUCT_ELEMENTS } from "@/lib/constants";
 
 export default function HomePage() {
-  const productA = useProductUpload();
-  const productB = useProductUpload();
-  const productC = useProductUpload();
+  const { uploads: products, previewUrls: productUrls } =
+    useProductUploads(MAX_PRODUCT_ELEMENTS);
   const logo = useProductUpload();
   const background = useProductUpload();
 
@@ -40,17 +17,9 @@ export default function HomePage() {
   const canCompose = useMemo(
     () =>
       Boolean(
-        productA.previewUrl ||
-          productB.previewUrl ||
-          productC.previewUrl ||
-          background.previewUrl,
+        productUrls.some(Boolean) || background.previewUrl,
       ),
-    [
-      productA.previewUrl,
-      productB.previewUrl,
-      productC.previewUrl,
-      background.previewUrl,
-    ],
+    [productUrls, background.previewUrl],
   );
 
   const handleEditUploads = () => {
@@ -65,8 +34,9 @@ export default function HomePage() {
             Bundle Image Composer
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-zinc-600 sm:text-base">
-            Upload product photos and an optional background, arrange them on a
-            clean 1:1 canvas, and download a marketplace-ready bundle image.
+            Upload up to {MAX_PRODUCT_ELEMENTS} product photos and an optional
+            background, arrange them on a clean 1:1 canvas, and download a
+            marketplace-ready bundle image.
           </p>
         </header>
 
@@ -74,28 +44,17 @@ export default function HomePage() {
           id="uploads"
           className="mt-10 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-8"
         >
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
-            <ImageUploadBox
-              label="Product A (optional)"
-              file={productA.file}
-              previewUrl={productA.previewUrl}
-              onFileChange={productA.setProduct}
-              onError={setError}
-            />
-            <ImageUploadBox
-              label="Product B (optional)"
-              file={productB.file}
-              previewUrl={productB.previewUrl}
-              onFileChange={productB.setProduct}
-              onError={setError}
-            />
-            <ImageUploadBox
-              label="Product C (optional)"
-              file={productC.file}
-              previewUrl={productC.previewUrl}
-              onFileChange={productC.setProduct}
-              onError={setError}
-            />
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {products.map((product, index) => (
+              <ImageUploadBox
+                key={index}
+                label={`Product ${index + 1} (optional)`}
+                file={product.file}
+                previewUrl={product.previewUrl}
+                onFileChange={product.setProduct}
+                onError={setError}
+              />
+            ))}
             <ImageUploadBox
               label="Logo (optional)"
               file={logo.file}
@@ -112,7 +71,8 @@ export default function HomePage() {
             />
           </div>
           <p className="mt-4 text-center text-xs text-zinc-500">
-            The background is drawn behind all other layers (last in the stack).
+            Up to {MAX_PRODUCT_ELEMENTS} products · The background is drawn behind
+            all other layers.
           </p>
 
           {!canCompose && (
@@ -134,9 +94,7 @@ export default function HomePage() {
 
         {canCompose && (
           <BundleWorkspace
-            productAUrl={productA.previewUrl}
-            productBUrl={productB.previewUrl}
-            productCUrl={productC.previewUrl}
+            productUrls={productUrls}
             logoUrl={logo.previewUrl}
             backgroundUrl={background.previewUrl}
             onEditUploads={handleEditUploads}

@@ -5,6 +5,7 @@ import {
   clampPosition,
   applyRotation,
   clampScale,
+  getProductLayerId,
   SCALE_STEP,
   type BundleTransforms,
   type LayerId,
@@ -28,9 +29,7 @@ import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import { renderBundleCanvas } from "@/lib/export-bundle-canvas";
 
 type BundleCanvasViewProps = {
-  productAUrl?: string | null;
-  productBUrl?: string | null;
-  productCUrl?: string | null;
+  productUrls: ReadonlyArray<string | null>;
   logoUrl?: string | null;
   backgroundUrl?: string | null;
   transforms: BundleTransforms;
@@ -81,15 +80,13 @@ function getCanvasPoint(
 }
 
 export default function BundleCanvasView({
-  productAUrl = null,
-  productBUrl = null,
-  productCUrl = null,
+  productUrls,
   logoUrl = null,
   backgroundUrl = null,
   transforms,
   interactive = false,
-  primaryLayer = "productA",
-  selectedLayers = ["productA"],
+  primaryLayer = getProductLayerId(0),
+  selectedLayers = [getProductLayerId(0)],
   selectionLocked = false,
   onSelectLayer,
   onUnlock,
@@ -214,13 +211,7 @@ export default function BundleCanvasView({
 
   useEffect(() => {
     let cancelled = false;
-    preloadBundleImages(
-      productAUrl,
-      productBUrl,
-      productCUrl,
-      logoUrl,
-      backgroundUrl,
-    ).then(
+    preloadBundleImages(productUrls, logoUrl, backgroundUrl).then(
       (images) => {
         if (!cancelled) {
           imagesRef.current = images;
@@ -231,7 +222,7 @@ export default function BundleCanvasView({
     return () => {
       cancelled = true;
     };
-  }, [productAUrl, productBUrl, productCUrl, logoUrl, backgroundUrl, schedulePaint]);
+  }, [productUrls, logoUrl, backgroundUrl, schedulePaint]);
 
   useEffect(() => {
     schedulePaint();

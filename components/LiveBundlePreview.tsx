@@ -4,9 +4,7 @@ import BundleCanvasView from "@/components/BundleCanvasView";
 import type { BundleTransforms } from "@/lib/bundle-editor";
 
 type LiveBundlePreviewProps = {
-  productAUrl?: string | null;
-  productBUrl?: string | null;
-  productCUrl?: string | null;
+  productUrls: ReadonlyArray<string | null>;
   logoUrl?: string | null;
   backgroundUrl?: string | null;
   transforms: BundleTransforms;
@@ -15,9 +13,7 @@ type LiveBundlePreviewProps = {
 };
 
 export default function LiveBundlePreview({
-  productAUrl = null,
-  productBUrl = null,
-  productCUrl = null,
+  productUrls,
   logoUrl = null,
   backgroundUrl = null,
   transforms,
@@ -27,9 +23,7 @@ export default function LiveBundlePreview({
   return (
     <div className={`relative ${className}`}>
       <BundleCanvasView
-        productAUrl={productAUrl}
-        productBUrl={productBUrl}
-        productCUrl={productCUrl}
+        productUrls={productUrls}
         logoUrl={logoUrl}
         backgroundUrl={backgroundUrl}
         transforms={transforms}

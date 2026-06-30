@@ -1,4 +1,10 @@
-import type { BundleTransforms, LayerId, LayerTransform } from "@/lib/bundle-editor";
+import type {
+  BundleTransforms,
+  LayerId,
+  LayerTransform,
+  ProductLayerId,
+} from "@/lib/bundle-editor";
+import { PRODUCT_LAYER_IDS } from "@/lib/bundle-editor";
 
 export const PRODUCT_MAX_HEIGHT_RATIO_ONE = 0.78;
 export const PRODUCT_MAX_HEIGHT_RATIO_TWO = 0.34;
@@ -49,22 +55,30 @@ export function computeBackgroundBounds(
 }
 
 export type BundleImageSet = {
-  productA: HTMLImageElement | null;
-  productB: HTMLImageElement | null;
-  productC: HTMLImageElement | null;
+  products: Partial<Record<ProductLayerId, HTMLImageElement>>;
   logo: HTMLImageElement | null;
   background: HTMLImageElement | null;
 };
 
+export function getActiveProductLayersFromImages(
+  images: BundleImageSet,
+): ProductLayerId[] {
+  return PRODUCT_LAYER_IDS.filter((layer) => Boolean(images.products[layer]));
+}
+
 export function getActiveProductCount(images: BundleImageSet): number {
-  return [images.productA, images.productB, images.productC].filter(Boolean)
-    .length;
+  return getActiveProductLayersFromImages(images).length;
 }
 
 function productHeightRatio(activeProductCount: number): number {
-  if (activeProductCount >= 3) return PRODUCT_MAX_HEIGHT_RATIO_THREE;
+  if (activeProductCount <= 1) return PRODUCT_MAX_HEIGHT_RATIO_ONE;
   if (activeProductCount === 2) return PRODUCT_MAX_HEIGHT_RATIO_TWO;
-  return PRODUCT_MAX_HEIGHT_RATIO_ONE;
+  if (activeProductCount === 3) return PRODUCT_MAX_HEIGHT_RATIO_THREE;
+  if (activeProductCount <= 4) return 0.22;
+  if (activeProductCount <= 6) return 0.18;
+  if (activeProductCount <= 9) return 0.14;
+  if (activeProductCount <= 12) return 0.11;
+  return 0.09;
 }
 
 function productWidthRatio(activeProductCount: number): number {
@@ -134,51 +148,45 @@ export function getLayerBounds(
 ): LayerBounds | null {
   const activeProductCount = getActiveProductCount(images);
 
-  switch (layer) {
-    case "productA":
-      if (!images.productA) return null;
-      return computeProductBounds(
-        images.productA,
-        transforms.productA,
-        canvasSize,
-        activeProductCount,
-      );
-    case "productB":
-      if (!images.productB) return null;
-      return computeProductBounds(
-        images.productB,
-        transforms.productB,
-        canvasSize,
-        activeProductCount,
-      );
-    case "productC":
-      if (!images.productC) return null;
-      return computeProductBounds(
-        images.productC,
-        transforms.productC,
-        canvasSize,
-        activeProductCount,
-      );
-    case "logo":
-      if (!images.logo) return null;
-      return computeLogoBounds(images.logo, transforms.logo, canvasSize);
-    case "background":
-      if (!images.background) return null;
-      return computeBackgroundBounds(
-        images.background,
-        transforms.background,
-        canvasSize,
-      );
+  if (isProductLayer(layer)) {
+    const img = images.products[layer];
+    if (!img) return null;
+    return computeProductBounds(
+      img,
+      transforms[layer],
+      canvasSize,
+      activeProductCount,
+    );
   }
+
+  if (layer === "logo") {
+    if (!images.logo) return null;
+    return computeLogoBounds(images.logo, transforms.logo, canvasSize);
+  }
+
+  if (layer === "background") {
+    if (!images.background) return null;
+    return computeBackgroundBounds(
+      images.background,
+      transforms.background,
+      canvasSize,
+    );
+  }
+
+  return null;
+}
+
+function isProductLayer(layer: LayerId): layer is ProductLayerId {
+  return layer.startsWith("product");
 }
 
 /** Top-most layer first (matches draw order: background, products, logo). */
 function getHitTestLayerOrder(images: BundleImageSet): LayerId[] {
   const layers: LayerId[] = [];
   if (images.background) layers.push("background");
-  if (images.productA) layers.push("productA");
-  if (images.productB) layers.push("productB");
-  if (images.productC) layers.push("productC");
+  for (const layer of PRODUCT_LAYER_IDS) {
+    if (images.products[layer]) layers.push(layer);
+  }
   if (images.logo) layers.push("logo");
   return layers.reverse();
 }

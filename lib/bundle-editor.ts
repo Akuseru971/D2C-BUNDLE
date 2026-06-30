@@ -1,9 +1,8 @@
-export type LayerId =
-  | "productA"
-  | "productB"
-  | "productC"
-  | "logo"
-  | "background";
+import { MAX_PRODUCT_ELEMENTS } from "@/lib/constants";
+
+export type ProductLayerId = `product${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15}`;
+
+export type LayerId = ProductLayerId | "logo" | "background";
 
 export type LayerTransform = {
   x: number;
@@ -47,62 +46,98 @@ const THREE_PRODUCT_POSITIONS: LayerTransform[] = [
   { x: 50, y: 78, scale: 1, rotation: 0 },
 ];
 
-const PRODUCT_LAYER_IDS: LayerId[] = ["productA", "productB", "productC"];
+export const PRODUCT_LAYER_IDS: ProductLayerId[] = Array.from(
+  { length: MAX_PRODUCT_ELEMENTS },
+  (_, index) => getProductLayerId(index),
+);
+
+export function getProductLayerId(index: number): ProductLayerId {
+  return `product${index + 1}` as ProductLayerId;
+}
+
+export function getProductIndex(layer: ProductLayerId): number {
+  return parseInt(layer.replace("product", ""), 10) - 1;
+}
+
+export function createEmptyTransforms(): BundleTransforms {
+  const transforms = {} as BundleTransforms;
+  for (const layer of PRODUCT_LAYER_IDS) {
+    transforms[layer] = { ...INACTIVE_LAYER };
+  }
+  transforms.logo = { ...DEFAULT_LOGO };
+  transforms.background = { ...DEFAULT_BACKGROUND };
+  return transforms;
+}
 
 export function getActiveProductLayers(
-  productAUrl?: string | null,
-  productBUrl?: string | null,
-  productCUrl?: string | null,
-): LayerId[] {
-  const layers: LayerId[] = [];
-  if (productAUrl) layers.push("productA");
-  if (productBUrl) layers.push("productB");
-  if (productCUrl) layers.push("productC");
+  productUrls: ReadonlyArray<string | null | undefined>,
+): ProductLayerId[] {
+  const layers: ProductLayerId[] = [];
+  for (let index = 0; index < productUrls.length && index < MAX_PRODUCT_ELEMENTS; index++) {
+    if (productUrls[index]) layers.push(getProductLayerId(index));
+  }
   return layers;
 }
 
+function getGridLayout(count: number): { cols: number; rows: number } {
+  if (count <= 1) return { cols: 1, rows: 1 };
+  if (count === 2) return { cols: 1, rows: 2 };
+  if (count === 3) return { cols: 1, rows: 3 };
+  const cols = Math.ceil(Math.sqrt(count));
+  const rows = Math.ceil(count / cols);
+  return { cols, rows };
+}
+
+export function getProductPositions(count: number): LayerTransform[] {
+  if (count === 1) return [{ x: 50, y: 50, scale: 1, rotation: 0 }];
+  if (count === 2) return TWO_PRODUCT_POSITIONS.map((position) => ({ ...position }));
+  if (count === 3) return THREE_PRODUCT_POSITIONS.map((position) => ({ ...position }));
+
+  const { cols, rows } = getGridLayout(count);
+  const padX = 8;
+  const padY = 8;
+  const cellWidth = (100 - 2 * padX) / cols;
+  const cellHeight = (100 - 2 * padY) / rows;
+  const positions: LayerTransform[] = [];
+
+  for (let index = 0; index < count; index++) {
+    const col = index % cols;
+    const row = Math.floor(index / cols);
+    positions.push({
+      x: padX + (col + 0.5) * cellWidth,
+      y: padY + (row + 0.5) * cellHeight,
+      scale: 1,
+      rotation: 0,
+    });
+  }
+
+  return positions;
+}
+
 export function getDefaultTransforms(
-  activeProducts: LayerId[],
+  activeProducts: ProductLayerId[],
   hasBackground = false,
 ): BundleTransforms {
-  const transforms: BundleTransforms = {
-    productA: { ...INACTIVE_LAYER },
-    productB: { ...INACTIVE_LAYER },
-    productC: { ...INACTIVE_LAYER },
-    logo: { ...DEFAULT_LOGO },
-    background: { ...DEFAULT_BACKGROUND },
-  };
+  const transforms = createEmptyTransforms();
 
   if (activeProducts.length === 0 && !hasBackground) {
     return transforms;
   }
 
-  if (activeProducts.length === 1) {
-    transforms[activeProducts[0]] = { x: 50, y: 50, scale: 1, rotation: 0 };
-    return transforms;
-  }
-
-  const positions =
-    activeProducts.length >= 3
-      ? THREE_PRODUCT_POSITIONS
-      : TWO_PRODUCT_POSITIONS;
-
+  const positions = getProductPositions(activeProducts.length);
   activeProducts.forEach((layer, index) => {
-    transforms[layer] = {
-      ...(positions[index] ?? positions[positions.length - 1]),
-    };
+    transforms[layer] = { ...(positions[index] ?? positions[positions.length - 1]) };
   });
 
   return transforms;
 }
 
-export const LAYER_LABELS: Record<LayerId, string> = {
-  productA: "Product A",
-  productB: "Product B",
-  productC: "Product C",
-  logo: "Logo",
-  background: "Background",
-};
+export function getLayerLabel(layer: LayerId): string {
+  if (layer === "logo") return "Logo";
+  if (layer === "background") return "Background";
+  const index = getProductIndex(layer);
+  return `Product ${index + 1}`;
+}
 
 export const MIN_SCALE = 0.35;
 export const MIN_SCALE_LOGO = 0.2;
@@ -156,7 +191,7 @@ export function applyRotation(degrees: number): number {
 export const CANVAS_CENTER = { x: 50, y: 50 } as const;
 
 export function getEditorLayerOrder(
-  activeProducts: LayerId[],
+  activeProducts: ProductLayerId[],
   hasLogo: boolean,
   hasBackground: boolean,
 ): LayerId[] {
@@ -167,19 +202,17 @@ export function getEditorLayerOrder(
   return layers;
 }
 
-export function isProductLayer(layer: LayerId): boolean {
-  return PRODUCT_LAYER_IDS.includes(layer);
+export function isProductLayer(layer: LayerId): layer is ProductLayerId {
+  return PRODUCT_LAYER_IDS.includes(layer as ProductLayerId);
 }
 
 export function getActiveLayers(
-  productAUrl?: string | null,
-  productBUrl?: string | null,
-  productCUrl?: string | null,
+  productUrls: ReadonlyArray<string | null | undefined>,
   logoUrl?: string | null,
   backgroundUrl?: string | null,
 ): LayerId[] {
   return getEditorLayerOrder(
-    getActiveProductLayers(productAUrl, productBUrl, productCUrl),
+    getActiveProductLayers(productUrls),
     Boolean(logoUrl),
     Boolean(backgroundUrl),
   );
@@ -187,7 +220,7 @@ export function getActiveLayers(
 
 export function getDefaultTransformForLayer(
   layer: LayerId,
-  activeProducts: LayerId[],
+  activeProducts: ProductLayerId[],
 ): LayerTransform {
   if (layer === "logo") return { ...DEFAULT_LOGO };
   if (layer === "background") return { ...DEFAULT_BACKGROUND };
@@ -195,15 +228,7 @@ export function getDefaultTransformForLayer(
   const index = activeProducts.indexOf(layer);
   if (index === -1) return { ...INACTIVE_LAYER };
 
-  if (activeProducts.length === 1) {
-    return { x: 50, y: 50, scale: 1, rotation: 0 };
-  }
-
-  const positions =
-    activeProducts.length >= 3
-      ? THREE_PRODUCT_POSITIONS
-      : TWO_PRODUCT_POSITIONS;
-
+  const positions = getProductPositions(activeProducts.length);
   return { ...(positions[index] ?? positions[positions.length - 1]) };
 }
 
@@ -212,15 +237,12 @@ export function mergeTransformsForNewLayers(
   current: BundleTransforms,
   previousActive: LayerId[],
   nextActive: LayerId[],
-  activeProducts: LayerId[],
+  activeProducts: ProductLayerId[],
 ): BundleTransforms {
-  const merged: BundleTransforms = {
-    productA: { ...current.productA },
-    productB: { ...current.productB },
-    productC: { ...current.productC },
-    logo: { ...current.logo },
-    background: { ...current.background },
-  };
+  const merged = createEmptyTransforms();
+  for (const layer of [...PRODUCT_LAYER_IDS, "logo", "background"] as LayerId[]) {
+    merged[layer] = { ...current[layer] };
+  }
 
   for (const layer of nextActive) {
     if (!previousActive.includes(layer)) {
