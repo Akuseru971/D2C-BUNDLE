@@ -16,11 +16,44 @@ export type LayerBounds = {
   centerY: number;
 };
 
+export function computeBackgroundBounds(
+  img: HTMLImageElement,
+  transform: LayerTransform,
+  canvasSize: number,
+): LayerBounds {
+  const centerX = (transform.x / 100) * canvasSize;
+  const centerY = (transform.y / 100) * canvasSize;
+  const imgAspect = img.width / img.height;
+
+  let coverWidth: number;
+  let coverHeight: number;
+  if (imgAspect >= 1) {
+    coverHeight = canvasSize;
+    coverWidth = coverHeight * imgAspect;
+  } else {
+    coverWidth = canvasSize;
+    coverHeight = coverWidth / imgAspect;
+  }
+
+  const drawWidth = coverWidth * transform.scale;
+  const drawHeight = coverHeight * transform.scale;
+
+  return {
+    x: centerX - drawWidth / 2,
+    y: centerY - drawHeight / 2,
+    width: drawWidth,
+    height: drawHeight,
+    centerX,
+    centerY,
+  };
+}
+
 export type BundleImageSet = {
   productA: HTMLImageElement | null;
   productB: HTMLImageElement | null;
   productC: HTMLImageElement | null;
   logo: HTMLImageElement | null;
+  background: HTMLImageElement | null;
 };
 
 export function getActiveProductCount(images: BundleImageSet): number {
@@ -129,12 +162,20 @@ export function getLayerBounds(
     case "logo":
       if (!images.logo) return null;
       return computeLogoBounds(images.logo, transforms.logo, canvasSize);
+    case "background":
+      if (!images.background) return null;
+      return computeBackgroundBounds(
+        images.background,
+        transforms.background,
+        canvasSize,
+      );
   }
 }
 
-/** Top-most layer first (matches draw order: products then logo on top). */
+/** Top-most layer first (matches draw order: background, products, logo). */
 function getHitTestLayerOrder(images: BundleImageSet): LayerId[] {
   const layers: LayerId[] = [];
+  if (images.background) layers.push("background");
   if (images.productA) layers.push("productA");
   if (images.productB) layers.push("productB");
   if (images.productC) layers.push("productC");

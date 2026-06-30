@@ -32,6 +32,7 @@ type BundleCanvasViewProps = {
   productBUrl?: string | null;
   productCUrl?: string | null;
   logoUrl?: string | null;
+  backgroundUrl?: string | null;
   transforms: BundleTransforms;
   interactive?: boolean;
   selectedLayer?: LayerId;
@@ -79,6 +80,7 @@ export default function BundleCanvasView({
   productBUrl = null,
   productCUrl = null,
   logoUrl = null,
+  backgroundUrl = null,
   transforms,
   interactive = false,
   selectedLayer = "productA",
@@ -190,7 +192,13 @@ export default function BundleCanvasView({
 
   useEffect(() => {
     let cancelled = false;
-    preloadBundleImages(productAUrl, productBUrl, productCUrl, logoUrl).then(
+    preloadBundleImages(
+      productAUrl,
+      productBUrl,
+      productCUrl,
+      logoUrl,
+      backgroundUrl,
+    ).then(
       (images) => {
         if (!cancelled) {
           imagesRef.current = images;
@@ -201,7 +209,7 @@ export default function BundleCanvasView({
     return () => {
       cancelled = true;
     };
-  }, [productAUrl, productBUrl, productCUrl, logoUrl, schedulePaint]);
+  }, [productAUrl, productBUrl, productCUrl, logoUrl, backgroundUrl, schedulePaint]);
 
   useEffect(() => {
     schedulePaint();

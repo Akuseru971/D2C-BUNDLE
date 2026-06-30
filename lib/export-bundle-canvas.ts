@@ -2,6 +2,7 @@ import type { BundleTransforms, LayerId } from "@/lib/bundle-editor";
 import { EXPORT_SIZE } from "@/lib/bundle-editor";
 import type { BundleImageSet } from "@/lib/bundle-layout";
 import {
+  computeBackgroundBounds,
   computeLogoBounds,
   computeProductBounds,
   getActiveProductCount,
@@ -11,6 +12,16 @@ import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import { BUNDLE_BACKGROUND } from "@/lib/remove-white-background";
 
 const PRODUCT_DRAW_ORDER: LayerId[] = ["productA", "productB", "productC"];
+
+function drawBackgroundLayer(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement,
+  transform: BundleTransforms["background"],
+  canvasSize: number,
+) {
+  const bounds = computeBackgroundBounds(img, transform, canvasSize);
+  drawOrientedImage(ctx, img, bounds, transform.rotation);
+}
 
 function drawProductLayer(
   ctx: CanvasRenderingContext2D,
@@ -49,8 +60,17 @@ export function renderBundleCanvas(
 ) {
   const activeProductCount = getActiveProductCount(images);
 
-  ctx.fillStyle = BUNDLE_BACKGROUND;
-  ctx.fillRect(0, 0, canvasSize, canvasSize);
+  if (images.background) {
+    drawBackgroundLayer(
+      ctx,
+      images.background,
+      transforms.background,
+      canvasSize,
+    );
+  } else {
+    ctx.fillStyle = BUNDLE_BACKGROUND;
+    ctx.fillRect(0, 0, canvasSize, canvasSize);
+  }
 
   for (const layer of PRODUCT_DRAW_ORDER) {
     const img = images[layer];
@@ -75,12 +95,14 @@ export async function renderBundleToDataUrl(
   productBUrl?: string | null,
   productCUrl?: string | null,
   logoUrl?: string | null,
+  backgroundUrl?: string | null,
 ): Promise<string> {
   const images = await preloadBundleImages(
     productAUrl,
     productBUrl,
     productCUrl,
     logoUrl,
+    backgroundUrl,
   );
 
   const canvas = document.createElement("canvas");

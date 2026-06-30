@@ -33,15 +33,24 @@ export default function HomePage() {
   const productB = useProductUpload();
   const productC = useProductUpload();
   const logo = useProductUpload();
+  const background = useProductUpload();
 
   const [error, setError] = useState<string | null>(null);
 
   const canCompose = useMemo(
     () =>
       Boolean(
-        productA.previewUrl || productB.previewUrl || productC.previewUrl,
+        productA.previewUrl ||
+          productB.previewUrl ||
+          productC.previewUrl ||
+          background.previewUrl,
       ),
-    [productA.previewUrl, productB.previewUrl, productC.previewUrl],
+    [
+      productA.previewUrl,
+      productB.previewUrl,
+      productC.previewUrl,
+      background.previewUrl,
+    ],
   );
 
   const handleEditUploads = () => {
@@ -56,8 +65,8 @@ export default function HomePage() {
             Bundle Image Composer
           </h1>
           <p className="mx-auto mt-3 max-w-2xl text-sm text-zinc-600 sm:text-base">
-            Upload one or more product photos, arrange them on a clean 1:1
-            canvas, and download a marketplace-ready bundle image.
+            Upload product photos and an optional background, arrange them on a
+            clean 1:1 canvas, and download a marketplace-ready bundle image.
           </p>
         </header>
 
@@ -65,7 +74,7 @@ export default function HomePage() {
           id="uploads"
           className="mt-10 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-8"
         >
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-5">
             <ImageUploadBox
               label="Product A (optional)"
               file={productA.file}
@@ -94,11 +103,22 @@ export default function HomePage() {
               onFileChange={logo.setProduct}
               onError={setError}
             />
+            <ImageUploadBox
+              label="Background (optional)"
+              file={background.file}
+              previewUrl={background.previewUrl}
+              onFileChange={background.setProduct}
+              onError={setError}
+            />
           </div>
+          <p className="mt-4 text-center text-xs text-zinc-500">
+            The background is drawn behind all other layers (last in the stack).
+          </p>
 
           {!canCompose && (
             <p className="mt-6 text-center text-sm text-zinc-500">
-              Upload at least one product image to open the editor and preview.
+              Upload at least one product or a background image to open the
+              editor.
             </p>
           )}
 
@@ -118,6 +138,7 @@ export default function HomePage() {
             productBUrl={productB.previewUrl}
             productCUrl={productC.previewUrl}
             logoUrl={logo.previewUrl}
+            backgroundUrl={background.previewUrl}
             onEditUploads={handleEditUploads}
           />
         )}

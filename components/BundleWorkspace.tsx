@@ -17,6 +17,7 @@ type BundleWorkspaceProps = {
   productBUrl?: string | null;
   productCUrl?: string | null;
   logoUrl?: string | null;
+  backgroundUrl?: string | null;
   onEditUploads: () => void;
 };
 
@@ -25,19 +26,25 @@ export default function BundleWorkspace({
   productBUrl = null,
   productCUrl = null,
   logoUrl = null,
+  backgroundUrl = null,
   onEditUploads,
 }: BundleWorkspaceProps) {
   const activeProducts = useMemo(
     () => getActiveProductLayers(productAUrl, productBUrl, productCUrl),
     [productAUrl, productBUrl, productCUrl],
   );
+  const hasBackground = Boolean(backgroundUrl);
 
   const layoutKey = useMemo(
     () =>
-      [productAUrl ?? "", productBUrl ?? "", productCUrl ?? "", logoUrl ?? ""].join(
-        "|",
-      ),
-    [productAUrl, productBUrl, productCUrl, logoUrl],
+      [
+        productAUrl ?? "",
+        productBUrl ?? "",
+        productCUrl ?? "",
+        logoUrl ?? "",
+        backgroundUrl ?? "",
+      ].join("|"),
+    [productAUrl, productBUrl, productCUrl, logoUrl, backgroundUrl],
   );
 
   const [isInteracting, setIsInteracting] = useState(false);
@@ -53,18 +60,19 @@ export default function BundleWorkspace({
     canUndo,
     canRedo,
     resetHistory,
-  } = useTransformHistory(getDefaultTransforms(activeProducts));
+  } = useTransformHistory(getDefaultTransforms(activeProducts, hasBackground));
 
   useEffect(() => {
     resetHistory(
       getDefaultTransforms(
         getActiveProductLayers(productAUrl, productBUrl, productCUrl),
+        Boolean(backgroundUrl),
       ),
     );
-  }, [layoutKey, productAUrl, productBUrl, productCUrl, resetHistory]);
+  }, [layoutKey, productAUrl, productBUrl, productCUrl, backgroundUrl, resetHistory]);
 
   const handleReset = () => {
-    resetHistory(getDefaultTransforms(activeProducts));
+    resetHistory(getDefaultTransforms(activeProducts, hasBackground));
   };
 
   const handleDownload = async () => {
@@ -75,6 +83,7 @@ export default function BundleWorkspace({
         productBUrl,
         productCUrl,
         logoUrl,
+        backgroundUrl,
       );
       const href = await renderBundleToDataUrl(
         transforms,
@@ -82,6 +91,7 @@ export default function BundleWorkspace({
         productBUrl,
         productCUrl,
         logoUrl,
+        backgroundUrl,
       );
 
       const link = document.createElement("a");
@@ -100,8 +110,8 @@ export default function BundleWorkspace({
       <div>
         <h2 className="text-lg font-semibold text-zinc-900">Compose your bundle</h2>
         <p className="mt-1 text-sm text-zinc-500">
-          Position your products and logo on the canvas. The preview matches the
-          downloaded image.
+          Position your products, logo, and background on the canvas. The preview
+          matches the downloaded image.
         </p>
       </div>
 
@@ -115,6 +125,7 @@ export default function BundleWorkspace({
             productBUrl={productBUrl}
             productCUrl={productCUrl}
             logoUrl={logoUrl}
+            backgroundUrl={backgroundUrl}
             transforms={transforms}
             isInteracting={isInteracting}
             className="shadow-md"
@@ -133,6 +144,7 @@ export default function BundleWorkspace({
             productBUrl={productBUrl}
             productCUrl={productCUrl}
             logoUrl={logoUrl}
+            backgroundUrl={backgroundUrl}
             transforms={transforms}
             onTransformsChange={setTransforms}
             onBeginGesture={beginGesture}

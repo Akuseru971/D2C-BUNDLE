@@ -26,6 +26,7 @@ type BundleEditorProps = {
   productBUrl?: string | null;
   productCUrl?: string | null;
   logoUrl?: string | null;
+  backgroundUrl?: string | null;
   transforms: BundleTransforms;
   onTransformsChange: (
     transforms: BundleTransforms | ((prev: BundleTransforms) => BundleTransforms),
@@ -45,6 +46,7 @@ export default function BundleEditor({
   productBUrl = null,
   productCUrl = null,
   logoUrl = null,
+  backgroundUrl = null,
   transforms,
   onTransformsChange,
   onBeginGesture,
@@ -62,7 +64,12 @@ export default function BundleEditor({
     productCUrl,
   );
   const hasLogo = Boolean(logoUrl);
-  const layerOrder = getEditorLayerOrder(activeProducts, hasLogo);
+  const hasBackground = Boolean(backgroundUrl);
+  const layerOrder = getEditorLayerOrder(
+    activeProducts,
+    hasLogo,
+    hasBackground,
+  );
   const [selectedLayer, setSelectedLayer] = useState<LayerId>(
     () => layerOrder[0] ?? "productA",
   );
@@ -311,6 +318,7 @@ export default function BundleEditor({
         productBUrl={productBUrl}
         productCUrl={productCUrl}
         logoUrl={logoUrl}
+        backgroundUrl={backgroundUrl}
         transforms={transforms}
         interactive
         selectedLayer={activeLayer}

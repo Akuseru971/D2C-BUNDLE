@@ -8,6 +8,7 @@ type LiveBundlePreviewProps = {
   productBUrl?: string | null;
   productCUrl?: string | null;
   logoUrl?: string | null;
+  backgroundUrl?: string | null;
   transforms: BundleTransforms;
   isInteracting?: boolean;
   className?: string;
@@ -18,6 +19,7 @@ export default function LiveBundlePreview({
   productBUrl = null,
   productCUrl = null,
   logoUrl = null,
+  backgroundUrl = null,
   transforms,
   isInteracting = false,
   className = "",
@@ -29,6 +31,7 @@ export default function LiveBundlePreview({
         productBUrl={productBUrl}
         productCUrl={productCUrl}
         logoUrl={logoUrl}
+        backgroundUrl={backgroundUrl}
         transforms={transforms}
         interactive={false}
         className={isInteracting ? "opacity-95" : ""}

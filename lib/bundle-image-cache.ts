@@ -7,9 +7,11 @@ import type { BundleImageSet } from "@/lib/bundle-layout";
 const rawCache = new Map<string, HTMLImageElement>();
 const productCache = new Map<string, HTMLImageElement>();
 const logoCache = new Map<string, HTMLImageElement>();
+const backgroundCache = new Map<string, HTMLImageElement>();
 const rawLoadPromises = new Map<string, Promise<HTMLImageElement>>();
 const productLoadPromises = new Map<string, Promise<HTMLImageElement>>();
 const logoLoadPromises = new Map<string, Promise<HTMLImageElement>>();
+const backgroundLoadPromises = new Map<string, Promise<HTMLImageElement>>();
 
 function loadRawImage(src: string): Promise<HTMLImageElement> {
   const cached = rawCache.get(src);
@@ -85,21 +87,41 @@ export function getCachedLogo(src: string): Promise<HTMLImageElement> {
   return promise;
 }
 
+export function getCachedBackground(src: string): Promise<HTMLImageElement> {
+  const cached = backgroundCache.get(src);
+  if (cached?.complete) return Promise.resolve(cached);
+
+  const pending = backgroundLoadPromises.get(src);
+  if (pending) return pending;
+
+  const promise = loadRawImage(src).then((img) => {
+    backgroundCache.set(src, img);
+    backgroundLoadPromises.delete(src);
+    return img;
+  });
+
+  backgroundLoadPromises.set(src, promise);
+  return promise;
+}
+
 export function preloadBundleImages(
   productAUrl?: string | null,
   productBUrl?: string | null,
   productCUrl?: string | null,
   logoUrl?: string | null,
+  backgroundUrl?: string | null,
 ): Promise<BundleImageSet> {
   return Promise.all([
     productAUrl ? getCachedProductImage(productAUrl) : Promise.resolve(null),
     productBUrl ? getCachedProductImage(productBUrl) : Promise.resolve(null),
     productCUrl ? getCachedProductImage(productCUrl) : Promise.resolve(null),
     logoUrl ? getCachedLogo(logoUrl) : Promise.resolve(null),
-  ]).then(([productA, productB, productC, logo]) => ({
+    backgroundUrl ? getCachedBackground(backgroundUrl) : Promise.resolve(null),
+  ]).then(([productA, productB, productC, logo, background]) => ({
     productA,
     productB,
     productC,
     logo,
+    background,
   }));
 }

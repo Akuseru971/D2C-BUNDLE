@@ -1,4 +1,9 @@
-export type LayerId = "productA" | "productB" | "productC" | "logo";
+export type LayerId =
+  | "productA"
+  | "productB"
+  | "productC"
+  | "logo"
+  | "background";
 
 export type LayerTransform = {
   x: number;
@@ -21,6 +26,13 @@ const DEFAULT_LOGO: LayerTransform = {
   x: 88,
   y: 14,
   scale: 0.575,
+  rotation: 0,
+};
+
+const DEFAULT_BACKGROUND: LayerTransform = {
+  x: 50,
+  y: 50,
+  scale: 1,
   rotation: 0,
 };
 
@@ -51,15 +63,17 @@ export function getActiveProductLayers(
 
 export function getDefaultTransforms(
   activeProducts: LayerId[],
+  hasBackground = false,
 ): BundleTransforms {
   const transforms: BundleTransforms = {
     productA: { ...INACTIVE_LAYER },
     productB: { ...INACTIVE_LAYER },
     productC: { ...INACTIVE_LAYER },
     logo: { ...DEFAULT_LOGO },
+    background: { ...DEFAULT_BACKGROUND },
   };
 
-  if (activeProducts.length === 0) {
+  if (activeProducts.length === 0 && !hasBackground) {
     return transforms;
   }
 
@@ -87,6 +101,7 @@ export const LAYER_LABELS: Record<LayerId, string> = {
   productB: "Product B",
   productC: "Product C",
   logo: "Logo",
+  background: "Background",
 };
 
 export const MIN_SCALE = 0.35;
@@ -143,8 +158,11 @@ export const CANVAS_CENTER = { x: 50, y: 50 } as const;
 export function getEditorLayerOrder(
   activeProducts: LayerId[],
   hasLogo: boolean,
+  hasBackground: boolean,
 ): LayerId[] {
-  const layers = [...activeProducts];
+  const layers: LayerId[] = [];
+  if (hasBackground) layers.push("background");
+  layers.push(...activeProducts);
   if (hasLogo) layers.push("logo");
   return layers;
 }
