@@ -3,15 +3,11 @@ export const BUNDLE_BACKGROUND = "#ffffff";
 
 const WHITE_THRESHOLD = 238;
 const WHITE_SOFTNESS = 22;
-/** Neutral near-white background (strict — avoids specular highlights on metal). */
 const MAX_CHANNEL_SPREAD = 28;
-const BACKGROUND_WHITE_MIN = 230;
-/**
- * Pixels darker than this nearby indicate metal / product detail.
- * White reflections on cutlery always sit next to darker metal.
- */
-const FOREGROUND_LUMINANCE = 200;
-const FOREGROUND_GUARD_RADIUS = 2;
+
+/** Only near-pure studio white is treated as removable background. */
+const STUDIO_WHITE_MIN = 248;
+const STUDIO_WHITE_SPREAD = 14;
 
 const CARDINAL_OFFSETS = [
   [-1, 0],
@@ -77,9 +73,8 @@ export function canvasToImage(
 export async function processProductImage(
   source: HTMLImageElement,
 ): Promise<HTMLImageElement> {
-  // Keep original pixels (metal, reflections, internal whites). Studio white
-  // backgrounds blend with the white export canvas without transparency artifacts.
-  return source;
+  const canvas = knockOutOuterWhiteBackground(source, { trim: false });
+  return canvasToImage(canvas);
 }
 
 const BLACK_THRESHOLD = 40;
@@ -137,49 +132,17 @@ function minChannel(r: number, g: number, b: number): number {
   return Math.min(r, g, b);
 }
 
-function pixelMinAt(
-  data: Uint8ClampedArray,
-  idx: number,
-): number {
-  const i = idx * 4;
-  return minChannel(data[i], data[i + 1], data[i + 2]);
-}
-
-/** Strict neutral studio background — not specular white on metal. */
-function isBackgroundWhite(r: number, g: number, b: number): boolean {
+/** Near-pure neutral studio backdrop — not metal, not specular highlights. */
+function isStudioBackdrop(r: number, g: number, b: number): boolean {
   return (
-    channelSpread(r, g, b) <= MAX_CHANNEL_SPREAD &&
-    minChannel(r, g, b) >= BACKGROUND_WHITE_MIN
+    channelSpread(r, g, b) <= STUDIO_WHITE_SPREAD &&
+    minChannel(r, g, b) >= STUDIO_WHITE_MIN
   );
 }
 
-function hasNearbyForeground(
-  data: Uint8ClampedArray,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius = FOREGROUND_GUARD_RADIUS,
-): boolean {
-  for (let dy = -radius; dy <= radius; dy++) {
-    for (let dx = -radius; dx <= radius; dx++) {
-      if (dx === 0 && dy === 0) continue;
-      const nx = x + dx;
-      const ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-      if (
-        pixelMinAt(data, ny * width + nx) < FOREGROUND_LUMINANCE
-      ) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 /**
- * Flood-fill from image borders through background white only.
- * Stops at product edges and specular highlights (adjacent metal/detail).
+ * Flood-fill from image borders through studio white only.
+ * Metal, reflections and internal whites are never reached.
  */
 function floodOuterBackground(
   data: Uint8ClampedArray,
@@ -195,8 +158,7 @@ function floodOuterBackground(
     const idx = y * width + x;
     if (outer[idx]) return;
     const i = idx * 4;
-    if (!isBackgroundWhite(data[i], data[i + 1], data[i + 2])) return;
-    if (hasNearbyForeground(data, x, y, width, height)) return;
+    if (!isStudioBackdrop(data[i], data[i + 1], data[i + 2])) return;
     outer[idx] = 1;
     queue.push(idx);
   };
@@ -223,65 +185,9 @@ function floodOuterBackground(
   return outer;
 }
 
-/** Remove marked background; never touch pixels near product metal/highlights. */
-function applyOuterKnockout(
-  data: Uint8ClampedArray,
-  outer: Uint8Array,
-  width: number,
-  height: number,
-): void {
-  const total = outer.length;
-
-  for (let idx = 0; idx < total; idx++) {
-    if (!outer[idx]) continue;
-    const x = idx % width;
-    const y = (idx / width) | 0;
-    if (hasNearbyForeground(data, x, y, width, height)) continue;
-    data[idx * 4 + 3] = 0;
-  }
-}
-
-/**
- * One-pixel halo between background and product, only where no metal is nearby.
- */
-function cleanIsolatedHalo(
-  data: Uint8ClampedArray,
-  outer: Uint8Array,
-  width: number,
-  height: number,
-): void {
-  const total = outer.length;
-  const touchesOuter = new Uint8Array(total);
-
-  for (let idx = 0; idx < total; idx++) {
-    if (outer[idx]) continue;
-    const x = idx % width;
-    const y = (idx / width) | 0;
-    for (const [dx, dy] of CARDINAL_OFFSETS) {
-      const nx = x + dx;
-      const ny = y + dy;
-      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
-      if (outer[ny * width + nx]) {
-        touchesOuter[idx] = 1;
-        break;
-      }
-    }
-  }
-
-  for (let idx = 0; idx < total; idx++) {
-    if (!touchesOuter[idx] || outer[idx]) continue;
-    const x = idx % width;
-    const y = (idx / width) | 0;
-    if (hasNearbyForeground(data, x, y, width, height)) continue;
-    const i = idx * 4;
-    if (!isBackgroundWhite(data[i], data[i + 1], data[i + 2])) continue;
-    data[i + 3] = 0;
-  }
-}
-
 /**
  * Removes only the outer white matte connected to the image edges (flood fill).
- * Preserves internal whites and specular highlights on cutlery / metal.
+ * Product pixels are never modified — only marked backdrop becomes transparent.
  */
 export function knockOutOuterWhiteBackground(
   source: HTMLImageElement | HTMLCanvasElement,
@@ -302,8 +208,11 @@ export function knockOutOuterWhiteBackground(
   const { data } = imageData;
 
   const outer = floodOuterBackground(data, width, height);
-  applyOuterKnockout(data, outer, width, height);
-  cleanIsolatedHalo(data, outer, width, height);
+
+  for (let idx = 0; idx < outer.length; idx++) {
+    if (!outer[idx]) continue;
+    data[idx * 4 + 3] = 0;
+  }
 
   ctx.putImageData(imageData, 0, 0);
   return options?.trim === false ? canvas : trimTransparentEdges(canvas);

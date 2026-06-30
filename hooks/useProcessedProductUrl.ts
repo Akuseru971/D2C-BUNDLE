@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { getCachedProductImage } from "@/lib/bundle-image-cache";
 
-/** Display URL for product uploads (original image, no background knockout). */
+/** Display URL for product with outer studio background removed. */
 export function useProcessedProductUrl(sourceUrl: string | null): string | null {
   const [processed, setProcessed] = useState<string | null>(null);
 
