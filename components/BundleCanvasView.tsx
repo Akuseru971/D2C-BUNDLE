@@ -39,6 +39,7 @@ type BundleCanvasViewProps = {
   selectedLayers?: LayerId[];
   selectionLocked?: boolean;
   onSelectLayer?: (layer: LayerId, options: { additive: boolean }) => void;
+  onUnlock?: () => void;
   onTransformsChange?: (
     update: BundleTransforms | ((prev: BundleTransforms) => BundleTransforms),
   ) => void;
@@ -91,6 +92,7 @@ export default function BundleCanvasView({
   selectedLayers = ["productA"],
   selectionLocked = false,
   onSelectLayer,
+  onUnlock,
   onTransformsChange,
   onBeginGesture,
   onCommit,
@@ -345,6 +347,12 @@ export default function BundleCanvasView({
       return;
     }
 
+    if (!layerAtPoint && !handleId) {
+      onUnlock?.();
+      schedulePaint();
+      return;
+    }
+
     let layer = primary;
     let mode: GestureMode = "move";
 
@@ -355,8 +363,18 @@ export default function BundleCanvasView({
       mode = "scale";
       layer = primary;
     } else if (locked) {
-      layer = primary;
-      mode = "move";
+      if (layerAtPoint && layerAtPoint !== primary) {
+        onUnlock?.();
+        onSelectLayer?.(layerAtPoint, { additive: false });
+        layer = layerAtPoint;
+        mode = "move";
+      } else if (layerAtPoint === primary) {
+        layer = primary;
+        mode = "move";
+      } else {
+        onUnlock?.();
+        return;
+      }
     } else {
       const hitSelected = findSelectedLayerAtPoint(
         canvasX,
@@ -405,14 +423,23 @@ export default function BundleCanvasView({
 
     const moveLayers =
       mode === "move"
-        ? selected.length > 1 && (locked || selected.includes(layer))
+        ? selected.length > 1 && selected.includes(layer)
           ? selected
           : [layer]
         : [layer];
 
+    const scaleLayers =
+      mode === "scale"
+        ? selected.length > 1
+          ? selected
+          : [layer]
+        : [layer];
+
+    const transformLayers = mode === "scale" ? scaleLayers : moveLayers;
+
     const origins: Partial<Record<LayerId, LayerTransform>> = {};
-    for (const moveLayer of moveLayers) {
-      origins[moveLayer] = { ...transformsRef.current[moveLayer] };
+    for (const transformLayer of transformLayers) {
+      origins[transformLayer] = { ...transformsRef.current[transformLayer] };
     }
 
     onBeginGesture?.();
@@ -422,7 +449,7 @@ export default function BundleCanvasView({
 
     const origin = { ...transformsRef.current[layer] };
     dragRef.current = {
-      layers: moveLayers,
+      layers: transformLayers,
       transformLayer: layer,
       mode,
       startClientX: event.clientX,
@@ -483,13 +510,18 @@ export default function BundleCanvasView({
       const dist = distanceFromCenter(canvasX, canvasY, bounds);
       const ratio =
         drag.startDistFromCenter > 0 ? dist / drag.startDistFromCenter : 1;
-      onTransformsChange((prev) => ({
-        ...prev,
-        [drag.transformLayer]: {
-          ...drag.origin,
-          scale: clampScale(drag.origin.scale * ratio, drag.transformLayer),
-        },
-      }));
+      onTransformsChange((prev) => {
+        const next = { ...prev };
+        for (const scaleLayer of drag.layers) {
+          const layerOrigin = drag.origins[scaleLayer];
+          if (!layerOrigin) continue;
+          next[scaleLayer] = {
+            ...layerOrigin,
+            scale: clampScale(layerOrigin.scale * ratio, scaleLayer),
+          };
+        }
+        return next;
+      });
     } else if (drag.mode === "rotate") {
       const angle = angleFromCenter(canvasX, canvasY, bounds);
       const deltaDeg = ((angle - drag.startAngleRad) * 180) / Math.PI;
@@ -560,15 +592,19 @@ export default function BundleCanvasView({
     if (!interactive || !onTransformsChange) return;
     event.preventDefault();
     onBeginGesture?.();
-    const layer = primaryRef.current;
+    const selected = selectedLayersRef.current;
+    const targets = selected.length > 1 ? selected : [primaryRef.current];
     const delta = event.deltaY > 0 ? -SCALE_STEP : SCALE_STEP;
-    onTransformsChange((prev) => ({
-      ...prev,
-      [layer]: {
-        ...prev[layer],
-        scale: clampScale(prev[layer].scale + delta, layer),
-      },
-    }));
+    onTransformsChange((prev) => {
+      const next = { ...prev };
+      for (const layer of targets) {
+        next[layer] = {
+          ...prev[layer],
+          scale: clampScale(prev[layer].scale + delta, layer),
+        };
+      }
+      return next;
+    });
     onCommit?.();
     schedulePaint();
   };

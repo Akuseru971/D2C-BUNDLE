@@ -111,34 +111,50 @@ export default function BundleEditor({
       return;
     }
 
-    if (!effectiveLockedLayer) {
-      setSelectedLayer(layer);
-      setSelectedLayers([layer]);
-    }
+    setLockedLayer(null);
+    setSelectedLayer(layer);
+    setSelectedLayers([layer]);
   };
 
-  const minScale = primaryLayer === "logo" ? MIN_SCALE_LOGO : MIN_SCALE;
+  const handleUnlock = () => {
+    setLockedLayer(null);
+  };
+
+  const transformTargets =
+    validSelectedLayers.length > 1 ? validSelectedLayers : [primaryLayer];
+
+  const minScaleForTargets = Math.min(
+    ...transformTargets.map((layer) =>
+      layer === "logo" ? MIN_SCALE_LOGO : MIN_SCALE,
+    ),
+  );
 
   const updateLayerScale = (value: number) => {
-    onTransformsChange((prev) => ({
-      ...prev,
-      [primaryLayer]: {
-        ...prev[primaryLayer],
-        scale: clampScale(value, primaryLayer),
-      },
-    }));
+    onTransformsChange((prev) => {
+      const next = { ...prev };
+      for (const layer of transformTargets) {
+        next[layer] = {
+          ...prev[layer],
+          scale: clampScale(value, layer),
+        };
+      }
+      return next;
+    });
   };
 
   const zoomSelected = (direction: "in" | "out") => {
     onBeginGesture();
     const delta = direction === "in" ? SCALE_STEP : -SCALE_STEP;
-    onTransformsChange((prev) => ({
-      ...prev,
-      [primaryLayer]: {
-        ...prev[primaryLayer],
-        scale: clampScale(prev[primaryLayer].scale + delta, primaryLayer),
-      },
-    }));
+    onTransformsChange((prev) => {
+      const next = { ...prev };
+      for (const layer of transformTargets) {
+        next[layer] = {
+          ...prev[layer],
+          scale: clampScale(prev[layer].scale + delta, layer),
+        };
+      }
+      return next;
+    });
     onCommit();
   };
 
@@ -258,7 +274,10 @@ export default function BundleEditor({
       <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 backdrop-blur-sm">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-medium text-zinc-600">
-            Scale — {LAYER_LABELS[primaryLayer]}
+            Scale —{" "}
+            {transformTargets.length > 1
+              ? `${transformTargets.length} layers`
+              : LAYER_LABELS[primaryLayer]}
             {effectiveLockedLayer && (
               <span className="ml-1 text-[10px] font-normal text-zinc-400">
                 (locked)
@@ -273,7 +292,7 @@ export default function BundleEditor({
           <button
             type="button"
             onClick={() => zoomSelected("out")}
-            disabled={selected.scale <= minScale}
+            disabled={selected.scale <= minScaleForTargets}
             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-sm font-medium disabled:opacity-40"
             aria-label="Zoom out"
           >
@@ -281,7 +300,7 @@ export default function BundleEditor({
           </button>
           <input
             type="range"
-            min={minScale}
+            min={minScaleForTargets}
             max={MAX_SCALE}
             step={SCALE_STEP}
             value={selected.scale}
@@ -371,6 +390,7 @@ export default function BundleEditor({
         selectedLayers={validSelectedLayers}
         selectionLocked={effectiveLockedLayer !== null}
         onSelectLayer={handleCanvasSelect}
+        onUnlock={handleUnlock}
         onTransformsChange={onTransformsChange}
         onBeginGesture={onBeginGesture}
         onCommit={onCommit}
