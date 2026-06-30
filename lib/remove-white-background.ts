@@ -77,8 +77,9 @@ export function canvasToImage(
 export async function processProductImage(
   source: HTMLImageElement,
 ): Promise<HTMLImageElement> {
-  const canvas = knockOutOuterWhiteBackground(source, { trim: false });
-  return canvasToImage(canvas);
+  // Keep original pixels (metal, reflections, internal whites). Studio white
+  // backgrounds blend with the white export canvas without transparency artifacts.
+  return source;
 }
 
 const BLACK_THRESHOLD = 40;
