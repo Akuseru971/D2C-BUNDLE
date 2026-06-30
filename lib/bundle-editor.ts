@@ -170,3 +170,63 @@ export function getEditorLayerOrder(
 export function isProductLayer(layer: LayerId): boolean {
   return PRODUCT_LAYER_IDS.includes(layer);
 }
+
+export function getActiveLayers(
+  productAUrl?: string | null,
+  productBUrl?: string | null,
+  productCUrl?: string | null,
+  logoUrl?: string | null,
+  backgroundUrl?: string | null,
+): LayerId[] {
+  return getEditorLayerOrder(
+    getActiveProductLayers(productAUrl, productBUrl, productCUrl),
+    Boolean(logoUrl),
+    Boolean(backgroundUrl),
+  );
+}
+
+export function getDefaultTransformForLayer(
+  layer: LayerId,
+  activeProducts: LayerId[],
+): LayerTransform {
+  if (layer === "logo") return { ...DEFAULT_LOGO };
+  if (layer === "background") return { ...DEFAULT_BACKGROUND };
+
+  const index = activeProducts.indexOf(layer);
+  if (index === -1) return { ...INACTIVE_LAYER };
+
+  if (activeProducts.length === 1) {
+    return { x: 50, y: 50, scale: 1, rotation: 0 };
+  }
+
+  const positions =
+    activeProducts.length >= 3
+      ? THREE_PRODUCT_POSITIONS
+      : TWO_PRODUCT_POSITIONS;
+
+  return { ...(positions[index] ?? positions[positions.length - 1]) };
+}
+
+/** Keeps existing layer transforms; applies defaults only to newly added layers. */
+export function mergeTransformsForNewLayers(
+  current: BundleTransforms,
+  previousActive: LayerId[],
+  nextActive: LayerId[],
+  activeProducts: LayerId[],
+): BundleTransforms {
+  const merged: BundleTransforms = {
+    productA: { ...current.productA },
+    productB: { ...current.productB },
+    productC: { ...current.productC },
+    logo: { ...current.logo },
+    background: { ...current.background },
+  };
+
+  for (const layer of nextActive) {
+    if (!previousActive.includes(layer)) {
+      merged[layer] = getDefaultTransformForLayer(layer, activeProducts);
+    }
+  }
+
+  return merged;
+}

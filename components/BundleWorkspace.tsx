@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import BundleEditor from "@/components/BundleEditor";
 import LiveBundlePreview from "@/components/LiveBundlePreview";
 import { useTransformHistory } from "@/hooks/useTransformHistory";
 import {
   EXPORT_SIZE,
+  getActiveLayers,
   getActiveProductLayers,
   getDefaultTransforms,
+  mergeTransformsForNewLayers,
+  type LayerId,
 } from "@/lib/bundle-editor";
 import { renderBundleToDataUrl } from "@/lib/export-bundle-canvas";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
@@ -50,6 +53,8 @@ export default function BundleWorkspace({
   const [isInteracting, setIsInteracting] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
+  const prevActiveLayersRef = useRef<LayerId[] | null>(null);
+
   const {
     transforms,
     setTransforms,
@@ -63,13 +68,46 @@ export default function BundleWorkspace({
   } = useTransformHistory(getDefaultTransforms(activeProducts, hasBackground));
 
   useEffect(() => {
-    resetHistory(
-      getDefaultTransforms(
-        getActiveProductLayers(productAUrl, productBUrl, productCUrl),
-        Boolean(backgroundUrl),
-      ),
+    const nextActive = getActiveLayers(
+      productAUrl,
+      productBUrl,
+      productCUrl,
+      logoUrl,
+      backgroundUrl,
     );
-  }, [layoutKey, productAUrl, productBUrl, productCUrl, backgroundUrl, resetHistory]);
+    const previousActive = prevActiveLayersRef.current;
+
+    if (previousActive !== null) {
+      const added = nextActive.filter((layer) => !previousActive.includes(layer));
+      if (added.length > 0) {
+        const activeProducts = getActiveProductLayers(
+          productAUrl,
+          productBUrl,
+          productCUrl,
+        );
+        setTransforms((current) =>
+          mergeTransformsForNewLayers(
+            current,
+            previousActive,
+            nextActive,
+            activeProducts,
+          ),
+        );
+        commitTransforms();
+      }
+    }
+
+    prevActiveLayersRef.current = nextActive;
+  }, [
+    layoutKey,
+    productAUrl,
+    productBUrl,
+    productCUrl,
+    logoUrl,
+    backgroundUrl,
+    setTransforms,
+    commitTransforms,
+  ]);
 
   const handleReset = () => {
     resetHistory(getDefaultTransforms(activeProducts, hasBackground));
