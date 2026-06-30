@@ -63,7 +63,7 @@ export function canvasToImage(
 export async function processProductImage(
   source: HTMLImageElement,
 ): Promise<HTMLImageElement> {
-  const canvas = knockOutWhiteBackground(source);
+  const canvas = knockOutOuterWhiteBackground(source, { trim: false });
   return canvasToImage(canvas);
 }
 
@@ -125,6 +125,7 @@ function isNeutralNearWhite(r: number, g: number, b: number): boolean {
  */
 export function knockOutOuterWhiteBackground(
   source: HTMLImageElement | HTMLCanvasElement,
+  options?: { trim?: boolean },
 ): HTMLCanvasElement {
   const width = source.width;
   const height = source.height;
@@ -181,7 +182,7 @@ export function knockOutOuterWhiteBackground(
   }
 
   ctx.putImageData(imageData, 0, 0);
-  return trimTransparentEdges(canvas);
+  return options?.trim === false ? canvas : trimTransparentEdges(canvas);
 }
 
 /** Crops fully transparent margins after outer-white removal. */
