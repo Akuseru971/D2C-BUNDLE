@@ -3,21 +3,21 @@ export const BUNDLE_BACKGROUND = "#ffffff";
 
 const WHITE_THRESHOLD = 238;
 const WHITE_SOFTNESS = 22;
-/** Ignore near-white pixels only when R,G,B are similar (neutral background). */
+/** Neutral near-white background (strict — avoids specular highlights on metal). */
 const MAX_CHANNEL_SPREAD = 28;
-/** Looser threshold for flood-fill only (reaches off-white / JPEG edge pixels). */
-const FLOOD_WHITE_MIN = 215;
-const FLOOD_MAX_SPREAD = 36;
+const BACKGROUND_WHITE_MIN = 230;
+/**
+ * Pixels darker than this nearby indicate metal / product detail.
+ * White reflections on cutlery always sit next to darker metal.
+ */
+const FOREGROUND_LUMINANCE = 200;
+const FOREGROUND_GUARD_RADIUS = 2;
 
-const NEIGHBOR_OFFSETS = [
+const CARDINAL_OFFSETS = [
   [-1, 0],
   [1, 0],
   [0, -1],
   [0, 1],
-  [-1, -1],
-  [-1, 1],
-  [1, -1],
-  [1, 1],
 ] as const;
 
 /**
@@ -136,25 +136,50 @@ function minChannel(r: number, g: number, b: number): number {
   return Math.min(r, g, b);
 }
 
-/** Permissive candidate for flood-fill from image borders (off-white / JPEG fringe). */
-function isFloodFillCandidate(r: number, g: number, b: number): boolean {
-  const spread = channelSpread(r, g, b);
-  if (spread > FLOOD_MAX_SPREAD) return false;
-  const minC = minChannel(r, g, b);
-  const maxC = Math.max(r, g, b);
-  return minC >= FLOOD_WHITE_MIN && maxC >= FLOOD_WHITE_MIN + 4;
+function pixelMinAt(
+  data: Uint8ClampedArray,
+  idx: number,
+): number {
+  const i = idx * 4;
+  return minChannel(data[i], data[i + 1], data[i + 2]);
 }
 
-/** 0 = foreground, 1 = background-like neutral white (for soft edge blend). */
-function backgroundWhiteness(r: number, g: number, b: number): number {
-  const spread = channelSpread(r, g, b);
-  if (spread > MAX_CHANNEL_SPREAD) return 0;
-  const lightness = minChannel(r, g, b);
-  if (lightness >= WHITE_THRESHOLD) return 1;
-  if (lightness <= WHITE_THRESHOLD - WHITE_SOFTNESS) return 0;
-  return (lightness - (WHITE_THRESHOLD - WHITE_SOFTNESS)) / WHITE_SOFTNESS;
+/** Strict neutral studio background — not specular white on metal. */
+function isBackgroundWhite(r: number, g: number, b: number): boolean {
+  return (
+    channelSpread(r, g, b) <= MAX_CHANNEL_SPREAD &&
+    minChannel(r, g, b) >= BACKGROUND_WHITE_MIN
+  );
 }
 
+function hasNearbyForeground(
+  data: Uint8ClampedArray,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius = FOREGROUND_GUARD_RADIUS,
+): boolean {
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      if (dx === 0 && dy === 0) continue;
+      const nx = x + dx;
+      const ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
+      if (
+        pixelMinAt(data, ny * width + nx) < FOREGROUND_LUMINANCE
+      ) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/**
+ * Flood-fill from image borders through background white only.
+ * Stops at product edges and specular highlights (adjacent metal/detail).
+ */
 function floodOuterBackground(
   data: Uint8ClampedArray,
   width: number,
@@ -169,7 +194,8 @@ function floodOuterBackground(
     const idx = y * width + x;
     if (outer[idx]) return;
     const i = idx * 4;
-    if (!isFloodFillCandidate(data[i], data[i + 1], data[i + 2])) return;
+    if (!isBackgroundWhite(data[i], data[i + 1], data[i + 2])) return;
+    if (hasNearbyForeground(data, x, y, width, height)) return;
     outer[idx] = 1;
     queue.push(idx);
   };
@@ -188,7 +214,7 @@ function floodOuterBackground(
     const idx = queue[head++];
     const x = idx % width;
     const y = (idx / width) | 0;
-    for (const [dx, dy] of NEIGHBOR_OFFSETS) {
+    for (const [dx, dy] of CARDINAL_OFFSETS) {
       tryPush(x + dx, y + dy);
     }
   }
@@ -196,8 +222,28 @@ function floodOuterBackground(
   return outer;
 }
 
-/** Softens the 1px ring touching removed background to reduce white halos. */
-function featherOuterBoundary(
+/** Remove marked background; never touch pixels near product metal/highlights. */
+function applyOuterKnockout(
+  data: Uint8ClampedArray,
+  outer: Uint8Array,
+  width: number,
+  height: number,
+): void {
+  const total = outer.length;
+
+  for (let idx = 0; idx < total; idx++) {
+    if (!outer[idx]) continue;
+    const x = idx % width;
+    const y = (idx / width) | 0;
+    if (hasNearbyForeground(data, x, y, width, height)) continue;
+    data[idx * 4 + 3] = 0;
+  }
+}
+
+/**
+ * One-pixel halo between background and product, only where no metal is nearby.
+ */
+function cleanIsolatedHalo(
   data: Uint8ClampedArray,
   outer: Uint8Array,
   width: number,
@@ -210,7 +256,7 @@ function featherOuterBoundary(
     if (outer[idx]) continue;
     const x = idx % width;
     const y = (idx / width) | 0;
-    for (const [dx, dy] of NEIGHBOR_OFFSETS) {
+    for (const [dx, dy] of CARDINAL_OFFSETS) {
       const nx = x + dx;
       const ny = y + dy;
       if (nx < 0 || ny < 0 || nx >= width || ny >= height) continue;
@@ -222,23 +268,19 @@ function featherOuterBoundary(
   }
 
   for (let idx = 0; idx < total; idx++) {
-    if (outer[idx]) {
-      const i = idx * 4;
-      data[i + 3] = 0;
-      continue;
-    }
-    if (!touchesOuter[idx]) continue;
-
+    if (!touchesOuter[idx] || outer[idx]) continue;
+    const x = idx % width;
+    const y = (idx / width) | 0;
+    if (hasNearbyForeground(data, x, y, width, height)) continue;
     const i = idx * 4;
-    const w = backgroundWhiteness(data[i], data[i + 1], data[i + 2]);
-    if (w <= 0) continue;
-    data[i + 3] = Math.round(data[i + 3] * (1 - w));
+    if (!isBackgroundWhite(data[i], data[i + 1], data[i + 2])) continue;
+    data[i + 3] = 0;
   }
 }
 
 /**
  * Removes only the outer white matte connected to the image edges (flood fill).
- * Internal whites (product area, labels) stay untouched.
+ * Preserves internal whites and specular highlights on cutlery / metal.
  */
 export function knockOutOuterWhiteBackground(
   source: HTMLImageElement | HTMLCanvasElement,
@@ -259,7 +301,8 @@ export function knockOutOuterWhiteBackground(
   const { data } = imageData;
 
   const outer = floodOuterBackground(data, width, height);
-  featherOuterBoundary(data, outer, width, height);
+  applyOuterKnockout(data, outer, width, height);
+  cleanIsolatedHalo(data, outer, width, height);
 
   ctx.putImageData(imageData, 0, 0);
   return options?.trim === false ? canvas : trimTransparentEdges(canvas);
