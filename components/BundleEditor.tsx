@@ -20,6 +20,7 @@ import {
   type BundleTransforms,
   type LayerId,
   applyRotation,
+  clampPosition,
   clampScale,
 } from "@/lib/bundle-editor";
 
@@ -200,6 +201,16 @@ export default function BundleEditor({
     onCommit();
   };
 
+  const updateLayerPosition = (axis: "x" | "y", value: number) => {
+    onTransformsChange((prev) => ({
+      ...prev,
+      [primaryLayer]: {
+        ...prev[primaryLayer],
+        [axis]: clampPosition(value),
+      },
+    }));
+  };
+
   const selected = transforms[primaryLayer];
 
   return (
@@ -369,6 +380,52 @@ export default function BundleEditor({
             ↻
           </button>
         </div>
+      </div>
+
+      <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 backdrop-blur-sm">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-medium text-zinc-600">
+            Position X — {getLayerLabel(primaryLayer)}
+          </span>
+          <span className="text-xs tabular-nums text-zinc-500">
+            {Math.round(selected.x)}%
+          </span>
+        </div>
+        <input
+          type="range"
+          min={5}
+          max={95}
+          step={0.5}
+          value={selected.x}
+          onPointerDown={onBeginGesture}
+          onChange={(e) => updateLayerPosition("x", parseFloat(e.target.value))}
+          onPointerUp={onCommit}
+          onTouchEnd={onCommit}
+          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-200 accent-zinc-900"
+        />
+      </div>
+
+      <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 backdrop-blur-sm">
+        <div className="mb-2 flex items-center justify-between">
+          <span className="text-xs font-medium text-zinc-600">
+            Position Y — {getLayerLabel(primaryLayer)}
+          </span>
+          <span className="text-xs tabular-nums text-zinc-500">
+            {Math.round(selected.y)}%
+          </span>
+        </div>
+        <input
+          type="range"
+          min={5}
+          max={95}
+          step={0.5}
+          value={selected.y}
+          onPointerDown={onBeginGesture}
+          onChange={(e) => updateLayerPosition("y", parseFloat(e.target.value))}
+          onPointerUp={onCommit}
+          onTouchEnd={onCommit}
+          className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-zinc-200 accent-zinc-900"
+        />
       </div>
 
       <BundleCanvasView

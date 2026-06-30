@@ -6,7 +6,6 @@ import {
   applyRotation,
   clampScale,
   getProductLayerId,
-  SCALE_STEP,
   type BundleTransforms,
   type LayerId,
   type LayerTransform,
@@ -579,27 +578,6 @@ export default function BundleCanvasView({
     schedulePaint();
   };
 
-  const handleWheel = (event: React.WheelEvent) => {
-    if (!interactive || !onTransformsChange) return;
-    event.preventDefault();
-    onBeginGesture?.();
-    const selected = selectedLayersRef.current;
-    const targets = selected.length > 1 ? selected : [primaryRef.current];
-    const delta = event.deltaY > 0 ? -SCALE_STEP : SCALE_STEP;
-    onTransformsChange((prev) => {
-      const next = { ...prev };
-      for (const layer of targets) {
-        next[layer] = {
-          ...prev[layer],
-          scale: clampScale(prev[layer].scale + delta, layer),
-        };
-      }
-      return next;
-    });
-    onCommit?.();
-    schedulePaint();
-  };
-
   return (
     <div
       className={`relative overflow-hidden rounded-2xl border-2 border-zinc-200 bg-white ${
@@ -613,7 +591,6 @@ export default function BundleCanvasView({
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onPointerLeave={interactive ? handlePointerLeave : undefined}
-        onWheel={interactive ? handleWheel : undefined}
         className="aspect-square w-full touch-none"
         aria-label={interactive ? "Interactive bundle editor" : "Bundle preview"}
       />
