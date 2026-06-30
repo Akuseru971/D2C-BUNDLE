@@ -60,7 +60,10 @@ export function drawOrientedSelection(
   rotationDegrees: number,
   canvasSize: number,
   activeHandle: TransformHandleId | null = null,
+  showHandles = true,
 ) {
   drawOrientedSelectionRing(ctx, bounds, rotationDegrees, canvasSize);
-  drawTransformHandles(ctx, bounds, rotationDegrees, canvasSize, activeHandle);
+  if (showHandles) {
+    drawTransformHandles(ctx, bounds, rotationDegrees, canvasSize, activeHandle);
+  }
 }

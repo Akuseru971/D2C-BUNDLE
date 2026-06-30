@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import BundleCanvasView from "@/components/BundleCanvasView";
 import {
   CANVAS_CENTER,
   getActiveProductLayers,
   getEditorLayerOrder,
+  isProductLayer,
   LAYER_LABELS,
   MAX_SCALE,
   MIN_SCALE,
@@ -73,19 +74,57 @@ export default function BundleEditor({
   const [selectedLayer, setSelectedLayer] = useState<LayerId>(
     () => layerOrder[0] ?? "productA",
   );
+  const [lockedLayer, setLockedLayer] = useState<LayerId | null>(null);
+  const [selectedLayers, setSelectedLayers] = useState<LayerId[]>(() =>
+    layerOrder[0] ? [layerOrder[0]] : [],
+  );
 
   const activeLayer = layerOrder.includes(selectedLayer)
     ? selectedLayer
     : (layerOrder[0] ?? "productA");
 
-  const minScale = activeLayer === "logo" ? MIN_SCALE_LOGO : MIN_SCALE;
+  const effectiveLockedLayer =
+    lockedLayer && layerOrder.includes(lockedLayer) ? lockedLayer : null;
+
+  const validSelectedLayers = useMemo(() => {
+    const next = selectedLayers.filter((layer) => layerOrder.includes(layer));
+    return next.length > 0 ? next : layerOrder[0] ? [layerOrder[0]] : [];
+  }, [selectedLayers, layerOrder]);
+
+  const primaryLayer = effectiveLockedLayer ?? activeLayer;
+
+  const handleTabSelect = (layer: LayerId) => {
+    setSelectedLayer(layer);
+    setSelectedLayers([layer]);
+    setLockedLayer(isProductLayer(layer) ? layer : null);
+  };
+
+  const handleCanvasSelect = (layer: LayerId, options: { additive: boolean }) => {
+    if (options.additive) {
+      setSelectedLayers((prev) => {
+        const next = prev.includes(layer)
+          ? prev.filter((item) => item !== layer)
+          : [...prev, layer];
+        if (next.length > 0) return next;
+        return effectiveLockedLayer ? [effectiveLockedLayer] : [layer];
+      });
+      return;
+    }
+
+    if (!effectiveLockedLayer) {
+      setSelectedLayer(layer);
+      setSelectedLayers([layer]);
+    }
+  };
+
+  const minScale = primaryLayer === "logo" ? MIN_SCALE_LOGO : MIN_SCALE;
 
   const updateLayerScale = (value: number) => {
     onTransformsChange((prev) => ({
       ...prev,
-      [activeLayer]: {
-        ...prev[activeLayer],
-        scale: clampScale(value, activeLayer),
+      [primaryLayer]: {
+        ...prev[primaryLayer],
+        scale: clampScale(value, primaryLayer),
       },
     }));
   };
@@ -95,9 +134,9 @@ export default function BundleEditor({
     const delta = direction === "in" ? SCALE_STEP : -SCALE_STEP;
     onTransformsChange((prev) => ({
       ...prev,
-      [activeLayer]: {
-        ...prev[activeLayer],
-        scale: clampScale(prev[activeLayer].scale + delta, activeLayer),
+      [primaryLayer]: {
+        ...prev[primaryLayer],
+        scale: clampScale(prev[primaryLayer].scale + delta, primaryLayer),
       },
     }));
     onCommit();
@@ -107,8 +146,8 @@ export default function BundleEditor({
     onBeginGesture();
     onTransformsChange((prev) => ({
       ...prev,
-      [activeLayer]: {
-        ...prev[activeLayer],
+      [primaryLayer]: {
+        ...prev[primaryLayer],
         x: CANVAS_CENTER.x,
         y: CANVAS_CENTER.y,
       },
@@ -119,8 +158,8 @@ export default function BundleEditor({
   const updateLayerRotation = (value: number) => {
     onTransformsChange((prev) => ({
       ...prev,
-      [activeLayer]: {
-        ...prev[activeLayer],
+      [primaryLayer]: {
+        ...prev[primaryLayer],
         rotation: applyRotation(value),
       },
     }));
@@ -132,9 +171,9 @@ export default function BundleEditor({
       direction === "right" ? ROTATION_BUTTON_STEP : -ROTATION_BUTTON_STEP;
     onTransformsChange((prev) => ({
       ...prev,
-      [activeLayer]: {
-        ...prev[activeLayer],
-        rotation: applyRotation(prev[activeLayer].rotation + delta),
+      [primaryLayer]: {
+        ...prev[primaryLayer],
+        rotation: applyRotation(prev[primaryLayer].rotation + delta),
       },
     }));
     onCommit();
@@ -144,15 +183,15 @@ export default function BundleEditor({
     onBeginGesture();
     onTransformsChange((prev) => ({
       ...prev,
-      [activeLayer]: {
-        ...prev[activeLayer],
+      [primaryLayer]: {
+        ...prev[primaryLayer],
         rotation: 0,
       },
     }));
     onCommit();
   };
 
-  const selected = transforms[activeLayer];
+  const selected = transforms[primaryLayer];
 
   return (
     <div className="space-y-4">
@@ -196,11 +235,13 @@ export default function BundleEditor({
           <button
             key={layer}
             type="button"
-            onClick={() => setSelectedLayer(layer)}
+            onClick={() => handleTabSelect(layer)}
             className={`rounded-full px-4 py-2 text-xs font-medium transition-all duration-200 ${
-              selectedLayer === layer
+              primaryLayer === layer
                 ? "bg-zinc-900 text-white shadow-md"
-                : "border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
+                : selectedLayers.includes(layer)
+                  ? "border border-zinc-900 bg-zinc-100 text-zinc-900"
+                  : "border border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50"
             }`}
           >
             {LAYER_LABELS[layer]}
@@ -217,7 +258,12 @@ export default function BundleEditor({
       <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 backdrop-blur-sm">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-medium text-zinc-600">
-            Scale — {LAYER_LABELS[activeLayer]}
+            Scale — {LAYER_LABELS[primaryLayer]}
+            {effectiveLockedLayer && (
+              <span className="ml-1 text-[10px] font-normal text-zinc-400">
+                (locked)
+              </span>
+            )}
           </span>
           <span className="text-xs tabular-nums text-zinc-500">
             {Math.round(selected.scale * 100)}%
@@ -260,7 +306,7 @@ export default function BundleEditor({
       <div className="rounded-xl border border-zinc-100 bg-zinc-50/80 p-4 backdrop-blur-sm">
         <div className="mb-2 flex items-center justify-between">
           <span className="text-xs font-medium text-zinc-600">
-            Rotation — {LAYER_LABELS[activeLayer]} (snaps at 0° / ±90°)
+            Rotation — {LAYER_LABELS[primaryLayer]} (snaps at 0° / ±90°)
           </span>
           <div className="flex items-center gap-2">
             <span className="text-xs tabular-nums text-zinc-500">
@@ -321,8 +367,10 @@ export default function BundleEditor({
         backgroundUrl={backgroundUrl}
         transforms={transforms}
         interactive
-        selectedLayer={activeLayer}
-        onSelectLayer={setSelectedLayer}
+        primaryLayer={primaryLayer}
+        selectedLayers={validSelectedLayers}
+        selectionLocked={effectiveLockedLayer !== null}
+        onSelectLayer={handleCanvasSelect}
         onTransformsChange={onTransformsChange}
         onBeginGesture={onBeginGesture}
         onCommit={onCommit}

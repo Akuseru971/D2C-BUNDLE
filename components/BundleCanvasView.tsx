@@ -35,8 +35,10 @@ type BundleCanvasViewProps = {
   backgroundUrl?: string | null;
   transforms: BundleTransforms;
   interactive?: boolean;
-  selectedLayer?: LayerId;
-  onSelectLayer?: (layer: LayerId) => void;
+  primaryLayer?: LayerId;
+  selectedLayers?: LayerId[];
+  selectionLocked?: boolean;
+  onSelectLayer?: (layer: LayerId, options: { additive: boolean }) => void;
   onTransformsChange?: (
     update: BundleTransforms | ((prev: BundleTransforms) => BundleTransforms),
   ) => void;
@@ -50,12 +52,14 @@ type BundleCanvasViewProps = {
 type GestureMode = "move" | "scale" | "rotate";
 
 type DragState = {
-  layer: LayerId;
+  layers: LayerId[];
+  transformLayer: LayerId;
   mode: GestureMode;
   startClientX: number;
   startClientY: number;
   startCanvasX: number;
   startCanvasY: number;
+  origins: Partial<Record<LayerId, LayerTransform>>;
   origin: LayerTransform;
   startDistFromCenter: number;
   startAngleRad: number;
@@ -83,7 +87,9 @@ export default function BundleCanvasView({
   backgroundUrl = null,
   transforms,
   interactive = false,
-  selectedLayer = "productA",
+  primaryLayer = "productA",
+  selectedLayers = ["productA"],
+  selectionLocked = false,
   onSelectLayer,
   onTransformsChange,
   onBeginGesture,
@@ -95,7 +101,9 @@ export default function BundleCanvasView({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imagesRef = useRef<BundleImageSet | null>(null);
   const transformsRef = useRef(transforms);
-  const selectedRef = useRef(selectedLayer);
+  const primaryRef = useRef(primaryLayer);
+  const selectedLayersRef = useRef(selectedLayers);
+  const selectionLockedRef = useRef(selectionLocked);
   const rafRef = useRef<number | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const handleHighlightRef = useRef<TransformHandleId | null>(null);
@@ -109,8 +117,16 @@ export default function BundleCanvasView({
   }, [transforms]);
 
   useEffect(() => {
-    selectedRef.current = selectedLayer;
-  }, [selectedLayer]);
+    primaryRef.current = primaryLayer;
+  }, [primaryLayer]);
+
+  useEffect(() => {
+    selectedLayersRef.current = selectedLayers;
+  }, [selectedLayers]);
+
+  useEffect(() => {
+    selectionLockedRef.current = selectionLocked;
+  }, [selectionLocked]);
 
   const updateCanvasCursor = useCallback(
     (
@@ -167,16 +183,20 @@ export default function BundleCanvasView({
     const t = transformsRef.current;
     renderBundleCanvas(ctx, images, t, size);
 
-    if (interactive && selectedRef.current) {
-      const layer = selectedRef.current;
-      const bounds = getLayerBounds(layer, images, t, size);
-      if (bounds) {
+    if (interactive) {
+      const layers = selectedLayersRef.current;
+      const primary = primaryRef.current;
+      for (const layer of layers) {
+        const bounds = getLayerBounds(layer, images, t, size);
+        if (!bounds) continue;
+        const isPrimary = layer === primary;
         drawOrientedSelection(
           ctx,
           bounds,
           t[layer].rotation,
           size,
-          handleHighlightRef.current,
+          isPrimary ? handleHighlightRef.current : null,
+          isPrimary,
         );
       }
     }
@@ -216,7 +236,7 @@ export default function BundleCanvasView({
     return () => {
       if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     };
-  }, [transforms, selectedLayer, hoveredHandle, schedulePaint]);
+  }, [transforms, primaryLayer, selectedLayers, hoveredHandle, schedulePaint]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -229,7 +249,7 @@ export default function BundleCanvasView({
   const resolveHoverHandle = useCallback(
     (canvasX: number, canvasY: number, size: number): TransformHandleId | null => {
       const images = imagesRef.current;
-      const layer = selectedRef.current;
+      const layer = primaryRef.current;
       if (!images || !layer) return null;
       const bounds = getLayerBounds(
         layer,
@@ -249,6 +269,38 @@ export default function BundleCanvasView({
     [],
   );
 
+  const findSelectedLayerAtPoint = useCallback(
+    (
+      canvasX: number,
+      canvasY: number,
+      images: BundleImageSet,
+      size: number,
+      layers: LayerId[],
+    ): LayerId | null => {
+      for (const layer of [...layers].reverse()) {
+        const bounds = getLayerBounds(
+          layer,
+          images,
+          transformsRef.current,
+          size,
+        );
+        if (
+          bounds &&
+          pointInRotatedBounds(
+            canvasX,
+            canvasY,
+            bounds,
+            transformsRef.current[layer].rotation,
+          )
+        ) {
+          return layer;
+        }
+      }
+      return null;
+    },
+    [],
+  );
+
   const handlePointerDown = (event: React.PointerEvent) => {
     if (!interactive || !onTransformsChange) return;
     const images = imagesRef.current;
@@ -256,6 +308,11 @@ export default function BundleCanvasView({
     if (!images || !canvas) return;
 
     const { x: canvasX, y: canvasY, size } = getCanvasPoint(event, canvas);
+    const additive = event.ctrlKey || event.metaKey;
+    const primary = primaryRef.current;
+    const selected = selectedLayersRef.current;
+    const locked = selectionLockedRef.current;
+
     const layerAtPoint = pickLayerAtPoint(
       canvasX,
       canvasY,
@@ -264,38 +321,60 @@ export default function BundleCanvasView({
       size,
     );
 
-    let layer = selectedRef.current;
-    let mode: GestureMode = "move";
-    let handleId: TransformHandleId | null = null;
-
-    const selectedBounds = getLayerBounds(
-      layer,
+    const primaryBounds = getLayerBounds(
+      primary,
       images,
       transformsRef.current,
       size,
     );
 
-    if (selectedBounds) {
+    let handleId: TransformHandleId | null = null;
+    if (primaryBounds) {
       handleId = hitTestTransformHandle(
         canvasX,
         canvasY,
-        selectedBounds,
-        transformsRef.current[layer].rotation,
+        primaryBounds,
+        transformsRef.current[primary].rotation,
         size,
       );
-      if (handleId === "rotate") {
-        mode = "rotate";
-      } else if (handleId?.startsWith("scale")) {
-        mode = "scale";
-      }
     }
 
-    if (!handleId) {
-      if (layerAtPoint) {
+    if (additive && layerAtPoint && !handleId) {
+      onSelectLayer?.(layerAtPoint, { additive: true });
+      schedulePaint();
+      return;
+    }
+
+    let layer = primary;
+    let mode: GestureMode = "move";
+
+    if (handleId === "rotate") {
+      mode = "rotate";
+      layer = primary;
+    } else if (handleId?.startsWith("scale")) {
+      mode = "scale";
+      layer = primary;
+    } else if (locked) {
+      layer = primary;
+      mode = "move";
+    } else {
+      const hitSelected = findSelectedLayerAtPoint(
+        canvasX,
+        canvasY,
+        images,
+        size,
+        selected,
+      );
+
+      if (hitSelected) {
+        layer = hitSelected;
+      } else if (layerAtPoint) {
         layer = layerAtPoint;
-        selectedRef.current = layer;
-        onSelectLayer?.(layer);
+        onSelectLayer?.(layerAtPoint, { additive: false });
+      } else {
+        return;
       }
+
       const bounds = getLayerBounds(
         layer,
         images,
@@ -324,6 +403,18 @@ export default function BundleCanvasView({
     );
     if (!bounds) return;
 
+    const moveLayers =
+      mode === "move"
+        ? selected.length > 1 && (locked || selected.includes(layer))
+          ? selected
+          : [layer]
+        : [layer];
+
+    const origins: Partial<Record<LayerId, LayerTransform>> = {};
+    for (const moveLayer of moveLayers) {
+      origins[moveLayer] = { ...transformsRef.current[moveLayer] };
+    }
+
     onBeginGesture?.();
     onInteractingChange?.(true);
     setIsDragging(true);
@@ -331,12 +422,14 @@ export default function BundleCanvasView({
 
     const origin = { ...transformsRef.current[layer] };
     dragRef.current = {
-      layer,
+      layers: moveLayers,
+      transformLayer: layer,
       mode,
       startClientX: event.clientX,
       startClientY: event.clientY,
       startCanvasX: canvasX,
       startCanvasY: canvasY,
+      origins,
       origin,
       startDistFromCenter: distanceFromCenter(canvasX, canvasY, bounds),
       startAngleRad: angleFromCenter(canvasX, canvasY, bounds),
@@ -365,7 +458,7 @@ export default function BundleCanvasView({
       const handle = resolveHoverHandle(canvasX, canvasY, size);
       setHoveredHandle(handle);
       handleHighlightRef.current = handle;
-      const layer = selectedRef.current;
+      const layer = primaryRef.current;
       updateCanvasCursor(
         handle,
         null,
@@ -376,11 +469,11 @@ export default function BundleCanvasView({
     }
 
     const bounds = getLayerBounds(
-      drag.layer,
+      drag.transformLayer,
       images,
       {
         ...transformsRef.current,
-        [drag.layer]: drag.origin,
+        [drag.transformLayer]: drag.origin,
       },
       size,
     );
@@ -392,9 +485,9 @@ export default function BundleCanvasView({
         drag.startDistFromCenter > 0 ? dist / drag.startDistFromCenter : 1;
       onTransformsChange((prev) => ({
         ...prev,
-        [drag.layer]: {
+        [drag.transformLayer]: {
           ...drag.origin,
-          scale: clampScale(drag.origin.scale * ratio, drag.layer),
+          scale: clampScale(drag.origin.scale * ratio, drag.transformLayer),
         },
       }));
     } else if (drag.mode === "rotate") {
@@ -402,7 +495,7 @@ export default function BundleCanvasView({
       const deltaDeg = ((angle - drag.startAngleRad) * 180) / Math.PI;
       onTransformsChange((prev) => ({
         ...prev,
-        [drag.layer]: {
+        [drag.transformLayer]: {
           ...drag.origin,
           rotation: applyRotation(drag.origin.rotation + deltaDeg),
         },
@@ -411,14 +504,19 @@ export default function BundleCanvasView({
       const rect = canvas.getBoundingClientRect();
       const deltaX = ((event.clientX - drag.startClientX) / rect.width) * 100;
       const deltaY = ((event.clientY - drag.startClientY) / rect.height) * 100;
-      onTransformsChange((prev) => ({
-        ...prev,
-        [drag.layer]: {
-          ...drag.origin,
-          x: clampPosition(drag.origin.x + deltaX),
-          y: clampPosition(drag.origin.y + deltaY),
-        },
-      }));
+      onTransformsChange((prev) => {
+        const next = { ...prev };
+        for (const moveLayer of drag.layers) {
+          const layerOrigin = drag.origins[moveLayer];
+          if (!layerOrigin) continue;
+          next[moveLayer] = {
+            ...layerOrigin,
+            x: clampPosition(layerOrigin.x + deltaX),
+            y: clampPosition(layerOrigin.y + deltaY),
+          };
+        }
+        return next;
+      });
     }
     schedulePaint();
   };
@@ -444,7 +542,7 @@ export default function BundleCanvasView({
       updateCanvasCursor(
         handle,
         null,
-        transformsRef.current[selectedRef.current].rotation,
+        transformsRef.current[primaryRef.current].rotation,
       );
     }
     schedulePaint();
@@ -462,7 +560,7 @@ export default function BundleCanvasView({
     if (!interactive || !onTransformsChange) return;
     event.preventDefault();
     onBeginGesture?.();
-    const layer = selectedRef.current;
+    const layer = primaryRef.current;
     const delta = event.deltaY > 0 ? -SCALE_STEP : SCALE_STEP;
     onTransformsChange((prev) => ({
       ...prev,
@@ -494,7 +592,7 @@ export default function BundleCanvasView({
       />
       {interactive && (
         <p className="pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-white/90 px-2.5 py-1 text-[10px] font-medium text-zinc-500 shadow-sm backdrop-blur">
-          Corners: resize · Top: rotate (snaps 0°/90°) · Inside: move
+          Ctrl+click: multi-select · Product tab locks · Corners: resize
         </p>
       )}
     </div>
