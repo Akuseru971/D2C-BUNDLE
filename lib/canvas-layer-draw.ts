@@ -1,4 +1,6 @@
 import type { LayerBounds } from "@/lib/bundle-layout";
+import { configureHighQualityCanvas } from "@/lib/canvas-render-quality";
+import { RENDER_QUALITY } from "@/lib/cutout-quality";
 import {
   drawTransformHandles,
   type TransformHandleId,
@@ -11,13 +13,15 @@ export function drawOrientedImage(
   rotationDegrees: number,
   options?: { shadow?: boolean; canvasSize?: number },
 ) {
+  configureHighQualityCanvas(ctx);
   ctx.save();
 
   if (options?.shadow && options.canvasSize) {
     const canvasSize = options.canvasSize;
-    ctx.shadowColor = "rgba(0, 0, 0, 0.12)";
-    ctx.shadowBlur = canvasSize * 0.024;
-    ctx.shadowOffsetY = canvasSize * 0.008;
+    ctx.shadowColor = `rgba(0, 0, 0, ${RENDER_QUALITY.productShadowOpacity})`;
+    ctx.shadowBlur = canvasSize * RENDER_QUALITY.productShadowBlurRatio;
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = canvasSize * RENDER_QUALITY.productShadowOffsetRatio;
   }
 
   ctx.translate(bounds.centerX, bounds.centerY);

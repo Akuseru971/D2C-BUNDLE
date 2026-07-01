@@ -8,6 +8,7 @@ import {
   getActiveProductCount,
 } from "@/lib/bundle-layout";
 import { drawOrientedImage } from "@/lib/canvas-layer-draw";
+import { configureHighQualityCanvas } from "@/lib/canvas-render-quality";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import { BUNDLE_BACKGROUND } from "@/lib/remove-white-background";
 
@@ -107,6 +108,7 @@ export async function renderBundleToDataUrl(
     throw new Error("Canvas is not supported in this browser.");
   }
 
+  configureHighQualityCanvas(ctx);
   renderBundleCanvas(ctx, images, transforms);
   return canvas.toDataURL("image/png");
 }

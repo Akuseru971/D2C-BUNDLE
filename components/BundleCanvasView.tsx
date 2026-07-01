@@ -26,6 +26,7 @@ import {
 import type { BundleImageSet } from "@/lib/bundle-layout";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import { renderBundleCanvas } from "@/lib/export-bundle-canvas";
+import { configureHighQualityCanvas } from "@/lib/canvas-render-quality";
 
 type BundleCanvasViewProps = {
   productUrls: ReadonlyArray<string | null>;
@@ -177,6 +178,7 @@ export default function BundleCanvasView({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    configureHighQualityCanvas(ctx);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     const t = transformsRef.current;
     renderBundleCanvas(ctx, images, t, size);
