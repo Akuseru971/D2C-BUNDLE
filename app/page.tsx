@@ -5,14 +5,23 @@ import BundleWorkspace from "@/components/BundleWorkspace";
 import ImageUploadBox from "@/components/ImageUploadBox";
 import { useProductUpload, useProductUploads } from "@/hooks/useProductUploads";
 import { MAX_PRODUCT_ELEMENTS } from "@/lib/constants";
+import type { ImageProcessingOptions } from "@/lib/image-processing-options";
 
 export default function HomePage() {
-  const { uploads: products, previewUrls: productUrls } =
+  const { uploads: products, previewUrls: productUrls, cutoutEnabled: productCutouts } =
     useProductUploads(MAX_PRODUCT_ELEMENTS);
   const logo = useProductUpload();
   const background = useProductUpload();
 
   const [error, setError] = useState<string | null>(null);
+
+  const processingOptions: ImageProcessingOptions = useMemo(
+    () => ({
+      productCutouts,
+      logoCutout: logo.cutoutEnabled,
+    }),
+    [productCutouts, logo.cutoutEnabled],
+  );
 
   const canCompose = useMemo(
     () =>
@@ -44,7 +53,7 @@ export default function HomePage() {
           id="uploads"
           className="mt-10 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm sm:p-8"
         >
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {products.map((product, index) => (
               <ImageUploadBox
                 key={index}
@@ -53,6 +62,9 @@ export default function HomePage() {
                 previewUrl={product.previewUrl}
                 onFileChange={product.setProduct}
                 onError={setError}
+                imageKind="product"
+                cutoutEnabled={product.cutoutEnabled}
+                onCutoutChange={product.setCutoutEnabled}
               />
             ))}
             <ImageUploadBox
@@ -61,6 +73,9 @@ export default function HomePage() {
               previewUrl={logo.previewUrl}
               onFileChange={logo.setProduct}
               onError={setError}
+              imageKind="logo"
+              cutoutEnabled={logo.cutoutEnabled}
+              onCutoutChange={logo.setCutoutEnabled}
             />
             <ImageUploadBox
               label="Background (optional)"
@@ -68,11 +83,12 @@ export default function HomePage() {
               previewUrl={background.previewUrl}
               onFileChange={background.setProduct}
               onError={setError}
+              imageKind="background"
             />
           </div>
           <p className="mt-4 text-center text-xs text-zinc-500">
-            Up to {MAX_PRODUCT_ELEMENTS} products · The background is drawn behind
-            all other layers.
+            Up to {MAX_PRODUCT_ELEMENTS} products · Cochez « Détourage » pour
+            retirer automatiquement le fond blanc des produits et du logo.
           </p>
 
           {!canCompose && (
@@ -97,6 +113,7 @@ export default function HomePage() {
             productUrls={productUrls}
             logoUrl={logo.previewUrl}
             backgroundUrl={background.previewUrl}
+            processingOptions={processingOptions}
             onEditUploads={handleEditUploads}
           />
         )}

@@ -23,11 +23,13 @@ import {
   clampPosition,
   clampScale,
 } from "@/lib/bundle-editor";
+import type { ImageProcessingOptions } from "@/lib/image-processing-options";
 
 type BundleEditorProps = {
   productUrls: ReadonlyArray<string | null>;
   logoUrl?: string | null;
   backgroundUrl?: string | null;
+  processingOptions: ImageProcessingOptions;
   transforms: BundleTransforms;
   onTransformsChange: (
     transforms: BundleTransforms | ((prev: BundleTransforms) => BundleTransforms),
@@ -46,6 +48,7 @@ export default function BundleEditor({
   productUrls,
   logoUrl = null,
   backgroundUrl = null,
+  processingOptions,
   transforms,
   onTransformsChange,
   onBeginGesture,
@@ -432,6 +435,7 @@ export default function BundleEditor({
         productUrls={productUrls}
         logoUrl={logoUrl}
         backgroundUrl={backgroundUrl}
+        processingOptions={processingOptions}
         transforms={transforms}
         interactive
         primaryLayer={primaryLayer}

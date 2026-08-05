@@ -4,15 +4,20 @@ import {
 } from "@/lib/remove-white-background";
 import { PRODUCT_LAYER_IDS, type ProductLayerId } from "@/lib/bundle-editor";
 import type { BundleImageSet } from "@/lib/bundle-layout";
+import {
+  createDefaultProductCutouts,
+  DEFAULT_CUTOUT_ENABLED,
+  type ImageProcessingOptions,
+} from "@/lib/image-processing-options";
 
 const rawCache = new Map<string, HTMLImageElement>();
-const productCache = new Map<string, HTMLImageElement>();
-const logoCache = new Map<string, HTMLImageElement>();
-const backgroundCache = new Map<string, HTMLImageElement>();
+const processedCache = new Map<string, HTMLImageElement>();
 const rawLoadPromises = new Map<string, Promise<HTMLImageElement>>();
-const productLoadPromises = new Map<string, Promise<HTMLImageElement>>();
-const logoLoadPromises = new Map<string, Promise<HTMLImageElement>>();
-const backgroundLoadPromises = new Map<string, Promise<HTMLImageElement>>();
+const processedLoadPromises = new Map<string, Promise<HTMLImageElement>>();
+
+function cacheKey(src: string, cutoutEnabled: boolean): string {
+  return `${src}|cutout:${cutoutEnabled}`;
+}
 
 function loadRawImage(src: string): Promise<HTMLImageElement> {
   const cached = rawCache.get(src);
@@ -40,80 +45,71 @@ function loadRawImage(src: string): Promise<HTMLImageElement> {
   return promise;
 }
 
-export function getCachedProductImage(
+function getCachedProcessedImage(
   src: string,
+  cutoutEnabled: boolean,
+  processor: (img: HTMLImageElement) => Promise<HTMLImageElement>,
 ): Promise<HTMLImageElement> {
-  const cached = productCache.get(src);
+  if (!cutoutEnabled) {
+    return loadRawImage(src);
+  }
+
+  const key = cacheKey(src, true);
+  const cached = processedCache.get(key);
   if (cached?.complete) return Promise.resolve(cached);
 
-  const pending = productLoadPromises.get(src);
+  const pending = processedLoadPromises.get(key);
   if (pending) return pending;
 
   const promise = loadRawImage(src)
-    .then(processProductImage)
+    .then(processor)
     .then((processed) => {
-      productCache.set(src, processed);
-      productLoadPromises.delete(src);
+      processedCache.set(key, processed);
+      processedLoadPromises.delete(key);
       return processed;
     })
     .catch((err) => {
-      productLoadPromises.delete(src);
+      processedLoadPromises.delete(key);
       throw err;
     });
 
-  productLoadPromises.set(src, promise);
+  processedLoadPromises.set(key, promise);
   return promise;
 }
 
-export function getCachedLogo(src: string): Promise<HTMLImageElement> {
-  const cached = logoCache.get(src);
-  if (cached?.complete) return Promise.resolve(cached);
+export function getCachedProductImage(
+  src: string,
+  cutoutEnabled = DEFAULT_CUTOUT_ENABLED,
+): Promise<HTMLImageElement> {
+  return getCachedProcessedImage(src, cutoutEnabled, processProductImage);
+}
 
-  const pending = logoLoadPromises.get(src);
-  if (pending) return pending;
-
-  const promise = loadRawImage(src)
-    .then(processBadgeImage)
-    .then((img) => {
-      logoCache.set(src, img);
-      logoLoadPromises.delete(src);
-      return img;
-    })
-    .catch((err) => {
-      logoLoadPromises.delete(src);
-      throw err;
-    });
-
-  logoLoadPromises.set(src, promise);
-  return promise;
+export function getCachedLogo(
+  src: string,
+  cutoutEnabled = DEFAULT_CUTOUT_ENABLED,
+): Promise<HTMLImageElement> {
+  return getCachedProcessedImage(src, cutoutEnabled, processBadgeImage);
 }
 
 export function getCachedBackground(src: string): Promise<HTMLImageElement> {
-  const cached = backgroundCache.get(src);
-  if (cached?.complete) return Promise.resolve(cached);
-
-  const pending = backgroundLoadPromises.get(src);
-  if (pending) return pending;
-
-  const promise = loadRawImage(src).then((img) => {
-    backgroundCache.set(src, img);
-    backgroundLoadPromises.delete(src);
-    return img;
-  });
-
-  backgroundLoadPromises.set(src, promise);
-  return promise;
+  return loadRawImage(src);
 }
 
 export function preloadBundleImages(
   productUrls: ReadonlyArray<string | null | undefined>,
   logoUrl?: string | null,
   backgroundUrl?: string | null,
+  processing: ImageProcessingOptions = {
+    productCutouts: createDefaultProductCutouts(productUrls.length),
+    logoCutout: DEFAULT_CUTOUT_ENABLED,
+  },
 ): Promise<BundleImageSet> {
   const productPromises = PRODUCT_LAYER_IDS.map((layer, index) => {
     const url = productUrls[index];
     if (!url) return Promise.resolve(null);
-    return getCachedProductImage(url).then(
+    const cutoutEnabled =
+      processing.productCutouts[index] ?? DEFAULT_CUTOUT_ENABLED;
+    return getCachedProductImage(url, cutoutEnabled).then(
       (img): { layer: ProductLayerId; img: HTMLImageElement } => ({
         layer,
         img,
@@ -124,7 +120,9 @@ export function preloadBundleImages(
 
   return Promise.all([
     Promise.all(productPromises),
-    logoUrl ? getCachedLogo(logoUrl) : Promise.resolve(null),
+    logoUrl
+      ? getCachedLogo(logoUrl, processing.logoCutout)
+      : Promise.resolve(null),
     backgroundUrl ? getCachedBackground(backgroundUrl) : Promise.resolve(null),
   ]).then(([productEntries, logo, background]) => {
     const products: Partial<Record<ProductLayerId, HTMLImageElement>> = {};

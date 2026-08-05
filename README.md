@@ -4,7 +4,7 @@ Compose marketplace-ready 1:1 e-commerce bundle images from your own product pho
 
 ## Features
 
-- Upload one to three product images (any slot) and optional logo
+- Upload up to four product images (any slot) and optional logo
 - Optional logo overlay (your exact file)
 - WYSIWYG canvas editor with undo/redo
 - Click elements to select, drag to move, scroll to zoom
@@ -37,7 +37,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ## Usage
 
 1. Upload at least **one product image** (PNG, JPG, JPEG, or WEBP, max 10MB each).
-2. Optionally add more products and a **Logo**.
+2. Optionally add more products, a **Logo**, and toggle **Détourage** to remove white backgrounds automatically.
 3. The editor and preview appear automatically.
 4. Adjust layout, then **Download PNG**.
 

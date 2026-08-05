@@ -1,8 +1,10 @@
 "use client";
 
 import { useCallback, useId, useRef, useState } from "react";
-import { useProcessedProductUrl } from "@/hooks/useProcessedProductUrl";
+import { useProcessedImageUrl } from "@/hooks/useProcessedProductUrl";
 import { validateImageFile } from "@/lib/validation";
+
+type ImageKind = "product" | "logo" | "background";
 
 type ImageUploadBoxProps = {
   label: string;
@@ -10,6 +12,9 @@ type ImageUploadBoxProps = {
   previewUrl: string | null;
   onFileChange: (file: File | null, previewUrl: string | null) => void;
   onError: (message: string | null) => void;
+  imageKind?: ImageKind;
+  cutoutEnabled?: boolean;
+  onCutoutChange?: (enabled: boolean) => void;
 };
 
 export default function ImageUploadBox({
@@ -18,11 +23,19 @@ export default function ImageUploadBox({
   previewUrl,
   onFileChange,
   onError,
+  imageKind = "product",
+  cutoutEnabled = true,
+  onCutoutChange,
 }: ImageUploadBoxProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const processedPreview = useProcessedProductUrl(previewUrl);
+  const showCutoutOption = imageKind !== "background";
+  const processedPreview = useProcessedImageUrl(
+    previewUrl,
+    imageKind,
+    cutoutEnabled,
+  );
 
   const handleFile = useCallback(
     (selected: File | null) => {
@@ -71,9 +84,23 @@ export default function ImageUploadBox({
 
   return (
     <div className="flex flex-1 flex-col gap-2">
-      <label htmlFor={inputId} className="text-sm font-medium text-zinc-700">
-        {label}
-      </label>
+      <div className="flex items-center justify-between gap-2">
+        <label htmlFor={inputId} className="text-sm font-medium text-zinc-700">
+          {label}
+        </label>
+        {showCutoutOption && onCutoutChange && (
+          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-600">
+            <input
+              type="checkbox"
+              checked={cutoutEnabled}
+              onChange={(event) => onCutoutChange(event.target.checked)}
+              onClick={(event) => event.stopPropagation()}
+              className="h-3.5 w-3.5 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-400"
+            />
+            Détourage
+          </label>
+        )}
+      </div>
       <div
         role="button"
         tabIndex={0}

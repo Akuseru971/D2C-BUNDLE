@@ -11,6 +11,11 @@ import { drawOrientedImage } from "@/lib/canvas-layer-draw";
 import { configureHighQualityCanvas } from "@/lib/canvas-render-quality";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import { BUNDLE_BACKGROUND } from "@/lib/remove-white-background";
+import {
+  createDefaultProductCutouts,
+  DEFAULT_CUTOUT_ENABLED,
+  type ImageProcessingOptions,
+} from "@/lib/image-processing-options";
 
 function drawBackgroundLayer(
   ctx: CanvasRenderingContext2D,
@@ -93,11 +98,16 @@ export async function renderBundleToDataUrl(
   productUrls: ReadonlyArray<string | null | undefined>,
   logoUrl?: string | null,
   backgroundUrl?: string | null,
+  processing: ImageProcessingOptions = {
+    productCutouts: createDefaultProductCutouts(productUrls.length),
+    logoCutout: DEFAULT_CUTOUT_ENABLED,
+  },
 ): Promise<string> {
   const images = await preloadBundleImages(
     productUrls,
     logoUrl,
     backgroundUrl,
+    processing,
   );
 
   const canvas = document.createElement("canvas");

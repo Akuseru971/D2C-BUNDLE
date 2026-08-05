@@ -27,11 +27,13 @@ import type { BundleImageSet } from "@/lib/bundle-layout";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import { renderBundleCanvas } from "@/lib/export-bundle-canvas";
 import { configureHighQualityCanvas } from "@/lib/canvas-render-quality";
+import type { ImageProcessingOptions } from "@/lib/image-processing-options";
 
 type BundleCanvasViewProps = {
   productUrls: ReadonlyArray<string | null>;
   logoUrl?: string | null;
   backgroundUrl?: string | null;
+  processingOptions: ImageProcessingOptions;
   transforms: BundleTransforms;
   interactive?: boolean;
   primaryLayer?: LayerId;
@@ -83,6 +85,7 @@ export default function BundleCanvasView({
   productUrls,
   logoUrl = null,
   backgroundUrl = null,
+  processingOptions,
   transforms,
   interactive = false,
   primaryLayer = getProductLayerId(0),
@@ -212,7 +215,12 @@ export default function BundleCanvasView({
 
   useEffect(() => {
     let cancelled = false;
-    preloadBundleImages(productUrls, logoUrl, backgroundUrl).then(
+    preloadBundleImages(
+      productUrls,
+      logoUrl,
+      backgroundUrl,
+      processingOptions,
+    ).then(
       (images) => {
         if (!cancelled) {
           imagesRef.current = images;
@@ -223,7 +231,7 @@ export default function BundleCanvasView({
     return () => {
       cancelled = true;
     };
-  }, [productUrls, logoUrl, backgroundUrl, schedulePaint]);
+  }, [productUrls, logoUrl, backgroundUrl, processingOptions, schedulePaint]);
 
   useEffect(() => {
     schedulePaint();

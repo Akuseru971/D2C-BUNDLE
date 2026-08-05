@@ -14,11 +14,13 @@ import {
 } from "@/lib/bundle-editor";
 import { renderBundleToDataUrl } from "@/lib/export-bundle-canvas";
 import { preloadBundleImages } from "@/lib/bundle-image-cache";
+import type { ImageProcessingOptions } from "@/lib/image-processing-options";
 
 type BundleWorkspaceProps = {
   productUrls: ReadonlyArray<string | null>;
   logoUrl?: string | null;
   backgroundUrl?: string | null;
+  processingOptions: ImageProcessingOptions;
   onEditUploads: () => void;
 };
 
@@ -26,6 +28,7 @@ export default function BundleWorkspace({
   productUrls,
   logoUrl = null,
   backgroundUrl = null,
+  processingOptions,
   onEditUploads,
 }: BundleWorkspaceProps) {
   const activeProducts = useMemo(
@@ -98,12 +101,18 @@ export default function BundleWorkspace({
   const handleDownload = async () => {
     setIsExporting(true);
     try {
-      await preloadBundleImages(productUrls, logoUrl, backgroundUrl);
+      await preloadBundleImages(
+        productUrls,
+        logoUrl,
+        backgroundUrl,
+        processingOptions,
+      );
       const href = await renderBundleToDataUrl(
         transforms,
         productUrls,
         logoUrl,
         backgroundUrl,
+        processingOptions,
       );
 
       const link = document.createElement("a");
@@ -136,6 +145,7 @@ export default function BundleWorkspace({
             productUrls={productUrls}
             logoUrl={logoUrl}
             backgroundUrl={backgroundUrl}
+            processingOptions={processingOptions}
             transforms={transforms}
             isInteracting={isInteracting}
             className="shadow-md"
@@ -153,6 +163,7 @@ export default function BundleWorkspace({
             productUrls={productUrls}
             logoUrl={logoUrl}
             backgroundUrl={backgroundUrl}
+            processingOptions={processingOptions}
             transforms={transforms}
             onTransformsChange={setTransforms}
             onBeginGesture={beginGesture}

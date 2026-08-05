@@ -2,11 +2,13 @@
 
 import BundleCanvasView from "@/components/BundleCanvasView";
 import type { BundleTransforms } from "@/lib/bundle-editor";
+import type { ImageProcessingOptions } from "@/lib/image-processing-options";
 
 type LiveBundlePreviewProps = {
   productUrls: ReadonlyArray<string | null>;
   logoUrl?: string | null;
   backgroundUrl?: string | null;
+  processingOptions: ImageProcessingOptions;
   transforms: BundleTransforms;
   isInteracting?: boolean;
   className?: string;
@@ -16,6 +18,7 @@ export default function LiveBundlePreview({
   productUrls,
   logoUrl = null,
   backgroundUrl = null,
+  processingOptions,
   transforms,
   isInteracting = false,
   className = "",
@@ -26,6 +29,7 @@ export default function LiveBundlePreview({
         productUrls={productUrls}
         logoUrl={logoUrl}
         backgroundUrl={backgroundUrl}
+        processingOptions={processingOptions}
         transforms={transforms}
         interactive={false}
         className={isInteracting ? "opacity-95" : ""}
