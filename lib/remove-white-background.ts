@@ -3,18 +3,72 @@ export const BUNDLE_BACKGROUND = "#ffffff";
 
 import {
   canvasToImage,
+  expandWhiteBackground,
+  imageToCanvas,
   processImageCutout,
 } from "@/lib/image-cutout";
+import type { SlotProcessingSettings } from "@/lib/image-processing-options";
 
 export { canvasToImage } from "@/lib/image-cutout";
 
 const BLACK_THRESHOLD = 40;
 const BLACK_SOFTNESS = 25;
 
+function trimTransparentEdges(
+  source: HTMLCanvasElement,
+): HTMLCanvasElement {
+  const ctx = source.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return source;
+
+  const { width, height } = source;
+  const { data } = ctx.getImageData(0, 0, width, height);
+  const alphaThreshold = 8;
+
+  let minX = width;
+  let minY = height;
+  let maxX = 0;
+  let maxY = 0;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (data[(y * width + x) * 4 + 3] > alphaThreshold) {
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
+      }
+    }
+  }
+
+  if (minX > maxX || minY > maxY) return source;
+
+  const cropW = maxX - minX + 1;
+  const cropH = maxY - minY + 1;
+  const out = document.createElement("canvas");
+  out.width = cropW;
+  out.height = cropH;
+  const outCtx = out.getContext("2d");
+  if (!outCtx) return source;
+  outCtx.drawImage(source, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
+  return out;
+}
+
+function applyWhiteExpand(
+  source: HTMLCanvasElement,
+  whiteExpandPx: number,
+): HTMLCanvasElement {
+  if (whiteExpandPx <= 0) return source;
+  return expandWhiteBackground(source, whiteExpandPx);
+}
+
 export async function processProductImage(
   source: HTMLImageElement,
+  settings: SlotProcessingSettings,
 ): Promise<HTMLImageElement> {
-  const canvas = processImageCutout(source);
+  let canvas = settings.cutoutEnabled
+    ? processImageCutout(source)
+    : imageToCanvas(source);
+  canvas = applyWhiteExpand(canvas, settings.whiteExpandPx);
   return canvasToImage(canvas);
 }
 
@@ -62,11 +116,21 @@ export async function processLogoImage(
   return canvasToImage(canvas);
 }
 
-/** Badge: outer white matte removal + edge refinement + trim. */
+/** Badge: outer white matte removal + edge refinement + optional trim/expand. */
 export async function processBadgeImage(
   source: HTMLImageElement,
+  settings: SlotProcessingSettings,
 ): Promise<HTMLImageElement> {
-  const canvas = trimTransparentEdges(processImageCutout(source));
+  let canvas: HTMLCanvasElement;
+  if (settings.cutoutEnabled) {
+    canvas = processImageCutout(source);
+    if (settings.whiteExpandPx <= 0) {
+      canvas = trimTransparentEdges(canvas);
+    }
+  } else {
+    canvas = imageToCanvas(source);
+  }
+  canvas = applyWhiteExpand(canvas, settings.whiteExpandPx);
   return canvasToImage(canvas);
 }
 
@@ -85,43 +149,4 @@ export function knockOutOuterWhiteBackground(
   const canvas = processImageCutout(source);
   if (options?.trim === false) return canvas;
   return trimTransparentEdges(canvas);
-}
-
-function trimTransparentEdges(
-  source: HTMLCanvasElement,
-): HTMLCanvasElement {
-  const ctx = source.getContext("2d", { willReadFrequently: true });
-  if (!ctx) return source;
-
-  const { width, height } = source;
-  const { data } = ctx.getImageData(0, 0, width, height);
-  const alphaThreshold = 8;
-
-  let minX = width;
-  let minY = height;
-  let maxX = 0;
-  let maxY = 0;
-
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      if (data[(y * width + x) * 4 + 3] > alphaThreshold) {
-        minX = Math.min(minX, x);
-        minY = Math.min(minY, y);
-        maxX = Math.max(maxX, x);
-        maxY = Math.max(maxY, y);
-      }
-    }
-  }
-
-  if (minX > maxX || minY > maxY) return source;
-
-  const cropW = maxX - minX + 1;
-  const cropH = maxY - minY + 1;
-  const out = document.createElement("canvas");
-  out.width = cropW;
-  out.height = cropH;
-  const outCtx = out.getContext("2d");
-  if (!outCtx) return source;
-  outCtx.drawImage(source, minX, minY, cropW, cropH, 0, 0, cropW, cropH);
-  return out;
 }

@@ -339,6 +339,102 @@ export function addProcessingPadding(
   return out;
 }
 
+function isExpandableWhiteBackdrop(r: number, g: number, b: number): boolean {
+  const minC = Math.min(r, g, b);
+  const spread = Math.max(r, g, b) - minC;
+  return (
+    minC >= CUTOUT_QUALITY.expandWhiteMin &&
+    spread <= CUTOUT_QUALITY.expandWhiteSpread
+  );
+}
+
+function isContentPixel(
+  r: number,
+  g: number,
+  b: number,
+  alpha: number,
+): boolean {
+  if (alpha <= CUTOUT_QUALITY.contentAlphaThreshold) return false;
+  if (alpha < 250) return true;
+  return !isExpandableWhiteBackdrop(r, g, b);
+}
+
+/** Adds opaque white margin around the visible subject (expands white matte). */
+export function expandWhiteBackground(
+  source: HTMLImageElement | HTMLCanvasElement,
+  expandPx: number,
+): HTMLCanvasElement {
+  if (expandPx <= 0) {
+    if (source instanceof HTMLCanvasElement) return source;
+    const canvas = document.createElement("canvas");
+    canvas.width = source.width;
+    canvas.height = source.height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Canvas 2D not available.");
+    ctx.drawImage(source, 0, 0);
+    return canvas;
+  }
+
+  const width = source.width;
+  const height = source.height;
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) throw new Error("Canvas 2D not available.");
+  ctx.drawImage(source, 0, 0);
+
+  const { data } = ctx.getImageData(0, 0, width, height);
+  let minX = width;
+  let minY = height;
+  let maxX = 0;
+  let maxY = 0;
+  let foundContent = false;
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const i = (y * width + x) * 4;
+      if (!isContentPixel(data[i], data[i + 1], data[i + 2], data[i + 3])) {
+        continue;
+      }
+      foundContent = true;
+      minX = Math.min(minX, x);
+      minY = Math.min(minY, y);
+      maxX = Math.max(maxX, x);
+      maxY = Math.max(maxY, y);
+    }
+  }
+
+  if (!foundContent) return canvas;
+
+  const cropW = maxX - minX + 1;
+  const cropH = maxY - minY + 1;
+  const outW = cropW + expandPx * 2;
+  const outH = cropH + expandPx * 2;
+  const out = document.createElement("canvas");
+  out.width = outW;
+  out.height = outH;
+  const outCtx = out.getContext("2d");
+  if (!outCtx) return canvas;
+
+  outCtx.fillStyle = "#ffffff";
+  outCtx.fillRect(0, 0, outW, outH);
+  outCtx.drawImage(canvas, minX, minY, cropW, cropH, expandPx, expandPx, cropW, cropH);
+  return out;
+}
+
+export function imageToCanvas(
+  source: HTMLImageElement | HTMLCanvasElement,
+): HTMLCanvasElement {
+  const canvas = document.createElement("canvas");
+  canvas.width = source.width;
+  canvas.height = source.height;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas 2D not available.");
+  ctx.drawImage(source, 0, 0);
+  return canvas;
+}
+
 export function canvasToImage(
   canvas: HTMLCanvasElement,
 ): Promise<HTMLImageElement> {

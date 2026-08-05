@@ -1,32 +1,40 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { DEFAULT_CUTOUT_ENABLED } from "@/lib/image-processing-options";
+import {
+  DEFAULT_CUTOUT_ENABLED,
+  DEFAULT_WHITE_EXPAND_PX,
+} from "@/lib/image-processing-options";
 
 type ProductUpload = {
   file: File | null;
   previewUrl: string | null;
   cutoutEnabled: boolean;
+  whiteExpandPx: number;
   setProduct: (file: File | null, previewUrl: string | null) => void;
   setCutoutEnabled: (enabled: boolean) => void;
+  setWhiteExpandPx: (px: number) => void;
 };
 
 type UploadState = {
   file: File | null;
   previewUrl: string | null;
   cutoutEnabled: boolean;
+  whiteExpandPx: number;
 };
 
 export function useProductUploads(count: number): {
   uploads: ProductUpload[];
   previewUrls: (string | null)[];
   cutoutEnabled: boolean[];
+  whiteExpandPx: number[];
 } {
   const [uploads, setUploads] = useState<UploadState[]>(() =>
     Array.from({ length: count }, () => ({
       file: null,
       previewUrl: null,
       cutoutEnabled: DEFAULT_CUTOUT_ENABLED,
+      whiteExpandPx: DEFAULT_WHITE_EXPAND_PX,
     })),
   );
 
@@ -57,17 +65,27 @@ export function useProductUploads(count: number): {
     });
   }, []);
 
+  const setWhiteExpandAt = useCallback((index: number, whiteExpandPx: number) => {
+    setUploads((prev) => {
+      const next = [...prev];
+      next[index] = { ...next[index], whiteExpandPx };
+      return next;
+    });
+  }, []);
+
   const productUploads = useMemo(
     () =>
       uploads.map((upload, index) => ({
         file: upload.file,
         previewUrl: upload.previewUrl,
         cutoutEnabled: upload.cutoutEnabled,
+        whiteExpandPx: upload.whiteExpandPx,
         setProduct: (file: File | null, previewUrl: string | null) =>
           setProductAt(index, file, previewUrl),
         setCutoutEnabled: (enabled: boolean) => setCutoutAt(index, enabled),
+        setWhiteExpandPx: (px: number) => setWhiteExpandAt(index, px),
       })),
-    [uploads, setProductAt, setCutoutAt],
+    [uploads, setProductAt, setCutoutAt, setWhiteExpandAt],
   );
 
   const previewUrls = useMemo(
@@ -77,6 +95,11 @@ export function useProductUploads(count: number): {
 
   const cutoutEnabled = useMemo(
     () => uploads.map((upload) => upload.cutoutEnabled),
+    [uploads],
+  );
+
+  const whiteExpandPx = useMemo(
+    () => uploads.map((upload) => upload.whiteExpandPx),
     [uploads],
   );
 
@@ -91,7 +114,7 @@ export function useProductUploads(count: number): {
     };
   }, []);
 
-  return { uploads: productUploads, previewUrls, cutoutEnabled };
+  return { uploads: productUploads, previewUrls, cutoutEnabled, whiteExpandPx };
 }
 
 export function useProductUpload(): ProductUpload {

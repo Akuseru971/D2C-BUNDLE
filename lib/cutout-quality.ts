@@ -19,6 +19,13 @@ export const CUTOUT_QUALITY = {
   defringeStrength: 0.82,
   /** Transparent padding added after processing (prevents clipped edges on resize). */
   processingPaddingPx: 4,
+  /** Max user-controlled white background expansion (px per side). */
+  maxWhiteExpandPx: 200,
+  /** Alpha below this when detecting content bounding box. */
+  contentAlphaThreshold: 8,
+  /** Min channel for pixels treated as white backdrop during expansion. */
+  expandWhiteMin: 240,
+  expandWhiteSpread: 18,
   /** PNG: alpha below this counts as transparent when detecting cutouts. */
   pngAlphaTransparent: 16,
   /** Fraction of transparent pixels to treat image as pre-cut PNG. */

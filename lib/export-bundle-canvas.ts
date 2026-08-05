@@ -13,7 +13,9 @@ import { preloadBundleImages } from "@/lib/bundle-image-cache";
 import { BUNDLE_BACKGROUND } from "@/lib/remove-white-background";
 import {
   createDefaultProductCutouts,
+  createDefaultProductWhiteExpand,
   DEFAULT_CUTOUT_ENABLED,
+  DEFAULT_WHITE_EXPAND_PX,
   type ImageProcessingOptions,
 } from "@/lib/image-processing-options";
 
@@ -100,7 +102,9 @@ export async function renderBundleToDataUrl(
   backgroundUrl?: string | null,
   processing: ImageProcessingOptions = {
     productCutouts: createDefaultProductCutouts(productUrls.length),
+    productWhiteExpand: createDefaultProductWhiteExpand(productUrls.length),
     logoCutout: DEFAULT_CUTOUT_ENABLED,
+    logoWhiteExpand: DEFAULT_WHITE_EXPAND_PX,
   },
 ): Promise<string> {
   const images = await preloadBundleImages(

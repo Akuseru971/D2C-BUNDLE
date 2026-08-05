@@ -2,6 +2,10 @@
 
 import { useCallback, useId, useRef, useState } from "react";
 import { useProcessedImageUrl } from "@/hooks/useProcessedProductUrl";
+import {
+  MAX_WHITE_EXPAND_PX,
+  WHITE_EXPAND_STEP_PX,
+} from "@/lib/image-processing-options";
 import { validateImageFile } from "@/lib/validation";
 
 type ImageKind = "product" | "logo" | "background";
@@ -15,6 +19,8 @@ type ImageUploadBoxProps = {
   imageKind?: ImageKind;
   cutoutEnabled?: boolean;
   onCutoutChange?: (enabled: boolean) => void;
+  whiteExpandPx?: number;
+  onWhiteExpandChange?: (px: number) => void;
 };
 
 export default function ImageUploadBox({
@@ -26,15 +32,18 @@ export default function ImageUploadBox({
   imageKind = "product",
   cutoutEnabled = true,
   onCutoutChange,
+  whiteExpandPx = 0,
+  onWhiteExpandChange,
 }: ImageUploadBoxProps) {
   const inputId = useId();
   const inputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const showCutoutOption = imageKind !== "background";
+  const showProcessingOptions = imageKind !== "background";
   const processedPreview = useProcessedImageUrl(
     previewUrl,
     imageKind,
     cutoutEnabled,
+    whiteExpandPx,
   );
 
   const handleFile = useCallback(
@@ -88,7 +97,7 @@ export default function ImageUploadBox({
         <label htmlFor={inputId} className="text-sm font-medium text-zinc-700">
           {label}
         </label>
-        {showCutoutOption && onCutoutChange && (
+        {showProcessingOptions && onCutoutChange && (
           <label className="flex cursor-pointer items-center gap-1.5 text-xs text-zinc-600">
             <input
               type="checkbox"
@@ -101,6 +110,30 @@ export default function ImageUploadBox({
           </label>
         )}
       </div>
+
+      {showProcessingOptions && onWhiteExpandChange && previewUrl && (
+        <label
+          className="flex items-center gap-2 text-xs text-zinc-600"
+          onClick={(event) => event.stopPropagation()}
+        >
+          <span className="shrink-0">Fond blanc</span>
+          <input
+            type="range"
+            min={0}
+            max={MAX_WHITE_EXPAND_PX}
+            step={WHITE_EXPAND_STEP_PX}
+            value={whiteExpandPx}
+            onChange={(event) =>
+              onWhiteExpandChange(Number(event.target.value))
+            }
+            className="h-1.5 flex-1 cursor-pointer accent-zinc-900"
+          />
+          <span className="w-10 shrink-0 text-right tabular-nums text-zinc-500">
+            {whiteExpandPx}px
+          </span>
+        </label>
+      )}
+
       <div
         role="button"
         tabIndex={0}

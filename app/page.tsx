@@ -8,8 +8,12 @@ import { MAX_PRODUCT_ELEMENTS } from "@/lib/constants";
 import type { ImageProcessingOptions } from "@/lib/image-processing-options";
 
 export default function HomePage() {
-  const { uploads: products, previewUrls: productUrls, cutoutEnabled: productCutouts } =
-    useProductUploads(MAX_PRODUCT_ELEMENTS);
+  const {
+    uploads: products,
+    previewUrls: productUrls,
+    cutoutEnabled: productCutouts,
+    whiteExpandPx: productWhiteExpand,
+  } = useProductUploads(MAX_PRODUCT_ELEMENTS);
   const logo = useProductUpload();
   const background = useProductUpload();
 
@@ -18,9 +22,11 @@ export default function HomePage() {
   const processingOptions: ImageProcessingOptions = useMemo(
     () => ({
       productCutouts,
+      productWhiteExpand,
       logoCutout: logo.cutoutEnabled,
+      logoWhiteExpand: logo.whiteExpandPx,
     }),
-    [productCutouts, logo.cutoutEnabled],
+    [productCutouts, productWhiteExpand, logo.cutoutEnabled, logo.whiteExpandPx],
   );
 
   const canCompose = useMemo(
@@ -65,6 +71,8 @@ export default function HomePage() {
                 imageKind="product"
                 cutoutEnabled={product.cutoutEnabled}
                 onCutoutChange={product.setCutoutEnabled}
+                whiteExpandPx={product.whiteExpandPx}
+                onWhiteExpandChange={product.setWhiteExpandPx}
               />
             ))}
             <ImageUploadBox
@@ -76,6 +84,8 @@ export default function HomePage() {
               imageKind="logo"
               cutoutEnabled={logo.cutoutEnabled}
               onCutoutChange={logo.setCutoutEnabled}
+              whiteExpandPx={logo.whiteExpandPx}
+              onWhiteExpandChange={logo.setWhiteExpandPx}
             />
             <ImageUploadBox
               label="Background (optional)"
@@ -87,8 +97,8 @@ export default function HomePage() {
             />
           </div>
           <p className="mt-4 text-center text-xs text-zinc-500">
-            Up to {MAX_PRODUCT_ELEMENTS} products · Cochez « Détourage » pour
-            retirer automatiquement le fond blanc des produits et du logo.
+            Up to {MAX_PRODUCT_ELEMENTS} products · « Détourage » retire le fond
+            blanc · « Fond blanc » élargit la marge blanche autour du sujet.
           </p>
 
           {!canCompose && (
