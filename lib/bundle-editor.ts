@@ -1,6 +1,6 @@
 import { MAX_PRODUCT_ELEMENTS } from "@/lib/constants";
 
-export type ProductLayerId = `product${1 | 2 | 3 | 4 | 5}`;
+export type ProductLayerId = `product${1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10}`;
 
 export type LayerId = ProductLayerId | "logo" | "background";
 
