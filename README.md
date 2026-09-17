@@ -4,7 +4,7 @@ Compose marketplace-ready 1:1 e-commerce bundle images from your own product pho
 
 ## Features
 
-- Upload up to four product images (any slot) and optional logo
+- Upload up to five product images (any slot) and optional logo
 - Optional logo overlay (your exact file)
 - WYSIWYG canvas editor with undo/redo
 - Click elements to select, drag to move, scroll to zoom
